@@ -1,16 +1,24 @@
-module github.com/oktadeveloper/terraform-provider-okta
+module github.com/terraform-providers/terraform-provider-okta
 
-go 1.15
+go 1.12
 
 require (
-	github.com/bflad/tfproviderlint v0.21.0
+	github.com/articulate/oktasdk-go v1.0.3-0.20200311150058-f2661b7a273f
+	github.com/beevik/etree v1.1.0 // indirect
+	github.com/bflad/tfproviderlint v0.4.0
+	github.com/chanzuckerberg/go-misc v0.0.0-20201008154655-f7399f8307ee
 	github.com/client9/misspell v0.3.4
-	github.com/crewjam/saml v0.4.5
+	github.com/crewjam/saml v0.0.0-20180831135026-ebc5f787b786
 	github.com/hashicorp/go-cleanhttp v0.5.1
-	github.com/hashicorp/go-cty v1.4.1-0.20200414143053-d3edf31b6320
-	github.com/hashicorp/go-hclog v0.15.0
-	github.com/hashicorp/go-retryablehttp v0.6.8
-	github.com/hashicorp/terraform-plugin-sdk/v2 v2.4.0
-	github.com/okta/okta-sdk-golang/v2 v2.2.1
-	github.com/peterhellberg/link v1.1.0
+	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/hashicorp/terraform-plugin-sdk v1.9.0
+	github.com/kelseyhightower/envconfig v1.4.0 // indirect
+	github.com/okta/okta-sdk-golang v0.1.0
+	github.com/peterhellberg/link v1.0.0
+	github.com/pkg/errors v0.9.1
+	github.com/russellhaering/goxmldsig v0.0.0-20180430223755-7acd5e4a6ef7 // indirect
+	github.com/ulikunitz/xz v0.5.6 // indirect
+	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 )
+
+replace github.com/okta/okta-sdk-golang => github.com/articulate/okta-sdk-golang v1.1.1
