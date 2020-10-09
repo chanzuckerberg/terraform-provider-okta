@@ -137,7 +137,7 @@ func resourceAppGroupAssignmentsCreate(d *schema.ResourceData, m interface{}) er
 	if err != nil {
 		return err
 	}
-	return resourceAppGroupAssignmentRead(d, m)
+	return resourceAppGroupAssignmentsRead(d, m)
 }
 
 func resourceAppGroupAssignmentsUpdate(d *schema.ResourceData, m interface{}) error {
@@ -180,7 +180,7 @@ func resourceAppGroupAssignmentsUpdate(d *schema.ResourceData, m interface{}) er
 		return err
 	}
 
-	return resourceAppGroupAssignmentRead(d, m)
+	return resourceAppGroupAssignmentsRead(d, m)
 }
 
 func resourceAppGroupAssignmentsRead(d *schema.ResourceData, m interface{}) error {
