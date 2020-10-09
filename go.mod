@@ -10,7 +10,6 @@ require (
 	github.com/client9/misspell v0.3.4
 	github.com/crewjam/saml v0.0.0-20180831135026-ebc5f787b786
 	github.com/hashicorp/go-cleanhttp v0.5.1
-	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/terraform-plugin-sdk v1.9.0
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/okta/okta-sdk-golang v0.1.0
