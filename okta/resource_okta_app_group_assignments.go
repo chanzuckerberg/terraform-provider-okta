@@ -102,7 +102,9 @@ func addGroupAssignments(
 ) error {
 	for _, groupID := range groupIDs {
 		_, _, err := add(appID, groupID, okta.ApplicationGroupAssignment{})
-		return errors.Wrapf(err, "could not assign group %s, to application %s", groupID, appID)
+		if err != nil {
+			return errors.Wrapf(err, "could not assign group %s, to application %s", groupID, appID)
+		}
 	}
 	return nil
 }
@@ -113,7 +115,9 @@ func deleteGroupAssignments(
 ) error {
 	for _, groupID := range groupIDs {
 		_, err := delete(appID, groupID)
-		return errors.Wrapf(err, "could not delete assignment for group %s, to application %s", groupID, appID)
+		if err != nil {
+			return errors.Wrapf(err, "could not delete assignment for group %s, to application %s", groupID, appID)
+		}
 	}
 	return nil
 }
