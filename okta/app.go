@@ -51,18 +51,21 @@ var baseAppSchema = map[string]*schema.Schema{
 		Computed:    true,
 		Description: "Sign on mode of application.",
 	},
-	"users": &schema.Schema{
-		Type:        schema.TypeSet,
-		Optional:    true,
-		Elem:        appUserResource,
-		Description: "Users associated with the application",
-	},
-	"groups": &schema.Schema{
-		Type:        schema.TypeSet,
-		Optional:    true,
-		Elem:        &schema.Schema{Type: schema.TypeString},
-		Description: "Groups associated with the application",
-	},
+	// NOTE(el) 2020-10-15: We explicitly forbit users and groups in app schemas
+	// 					 these are inefficient, counter to tf provider guidelines, and trigger okta api rate limits
+	//
+	// "users": &schema.Schema{
+	// 	Type:        schema.TypeSet,
+	// 	Optional:    true,
+	// 	Elem:        appUserResource,
+	// 	Description: "Users associated with the application",
+	// },
+	// "groups": &schema.Schema{
+	// 	Type:        schema.TypeSet,
+	// 	Optional:    true,
+	// 	Elem:        &schema.Schema{Type: schema.TypeString},
+	// 	Description: "Groups associated with the application",
+	// },
 	"status": &schema.Schema{
 		Type:         schema.TypeString,
 		Optional:     true,
@@ -272,8 +275,12 @@ func containsAppUser(userList []*okta.AppUser, id string) bool {
 	return false
 }
 
+// NOTE(el) 2020-10-15: We explicitly return nil early here
+//                      Assignments must not be handled by the application resources but rather by
+//                      an assignment resource.
 // Handles the assigning of groups and users to Applications. Does so asynchronously.
 func handleAppGroupsAndUsers(id string, d *schema.ResourceData, m interface{}) error {
+	return nil
 	var wg sync.WaitGroup
 	resultChan := make(chan []*result, 1)
 	client := getOktaClientFromMetadata(m)
@@ -362,7 +369,11 @@ func setAppStatus(d *schema.ResourceData, client *okta.Client, status string, de
 	return nil
 }
 
+// NOTE(el) 2020-10-15: We explicitly return nil early here
+//                      Assignments must not be handled by the application resources but rather by
+//                      an assignment resource.
 func syncGroupsAndUsers(id string, d *schema.ResourceData, m interface{}) error {
+	return nil
 	client := getOktaClientFromMetadata(m)
 	// Temporary high limit to avoid issues short term. Need to support pagination here
 	userList, _, err := client.Application.ListApplicationUsers(id, &query.Params{Limit: 200})
