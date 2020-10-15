@@ -52,18 +52,19 @@ var baseAppSchema = map[string]*schema.Schema{
 		Computed:    true,
 		Description: "Sign on mode of application.",
 	},
-	"users": {
-		Type:        schema.TypeSet,
-		Optional:    true,
-		Elem:        appUserResource,
-		Description: "Users associated with the application",
-	},
-	"groups": {
-		Type:        schema.TypeSet,
-		Optional:    true,
-		Elem:        &schema.Schema{Type: schema.TypeString},
-		Description: "Groups associated with the application",
-	},
+	// NOTE(el): We explicitly disallow these because they are inefficient and trigger rate limits
+	// "users": {
+	// 	Type:        schema.TypeSet,
+	// 	Optional:    true,
+	// 	Elem:        appUserResource,
+	// 	Description: "Users associated with the application",
+	// },
+	// "groups": {
+	// 	Type:        schema.TypeSet,
+	// 	Optional:    true,
+	// 	Elem:        &schema.Schema{Type: schema.TypeString},
+	// 	Description: "Groups associated with the application",
+	// },
 	"status": {
 		Type:             schema.TypeString,
 		Optional:         true,
@@ -326,6 +327,9 @@ func containsAppUser(userList []*okta.AppUser, id string) bool {
 	return false
 }
 
+// NOTE(el) 2020-10-15: We explicitly return nil early here
+//                      Assignments must not be handled by the application resources but rather by
+//                      an assignment resource.
 // Handles the assigning of groups and users to Applications. Does so asynchronously.
 func handleAppGroupsAndUsers(ctx context.Context, id string, d *schema.ResourceData, m interface{}) error {
 	var wg sync.WaitGroup
@@ -407,6 +411,10 @@ func setAppStatus(ctx context.Context, d *schema.ResourceData, client *okta.Clie
 }
 
 func syncGroupsAndUsers(ctx context.Context, id string, d *schema.ResourceData, m interface{}) error {
+	// NOTE(el) 2020-10-15: We explicitly return nil early here
+	//                      Assignments must not be handled by the application resources but rather by
+	//                      an assignment resource.
+	return nil
 	client := getOktaClientFromMetadata(m)
 	// Temporary high limit to avoid issues short term. Need to support pagination here
 	userList, _, err := client.Application.ListApplicationUsers(ctx, id, &query.Params{Limit: defaultPaginationLimit})
