@@ -600,8 +600,8 @@ github.com/nsf/jsondiff v0.0.0-20200515183724-f29ed568f4ce/go.mod h1:uFMI8w+ref4
 github.com/oklog/run v1.0.0 h1:Ru7dDtJNOyC66gQ5dQmaCa0qIsAUFY3sFpK1Xk8igrw=
 github.com/oklog/run v1.0.0/go.mod h1:dlhp/R75TPv97u0XWUtDeV/lRKWPKSdTuV0TZvrmrQA=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
-github.com/okta/okta-sdk-golang/v2 v2.2.1 h1:o6IqNfn2U8RKVOqkFS21/vHzDzXDOyqNO6dlW61Cj4I=
-github.com/okta/okta-sdk-golang/v2 v2.2.1/go.mod h1:ZGx20R+s/DQV3L8fxFN2OrQEIe2hBpwM7/443wLyQpc=
+github.com/okta/okta-sdk-golang/v2 v2.2.2 h1:EHAMz4640EYqscr8AkRKmmbZWR+RShz7vz5EIEoUcPo=
+github.com/okta/okta-sdk-golang/v2 v2.2.2/go.mod h1:ZGx20R+s/DQV3L8fxFN2OrQEIe2hBpwM7/443wLyQpc=
 github.com/olekukonko/tablewriter v0.0.0-20170122224234-a0225b3f23b5/go.mod h1:vsDQFd/mU46D+Z4whnwzcISnGGzXWMclvtLoiIKAKIo=
 github.com/onsi/ginkgo v0.0.0-20170829012221-11459a886d9c/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
