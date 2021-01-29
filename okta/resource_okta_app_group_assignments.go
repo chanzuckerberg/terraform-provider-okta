@@ -1,13 +1,15 @@
 package okta
 
 import (
+	"context"
 	"net/url"
 
 	"github.com/chanzuckerberg/go-misc/sets"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/okta/okta-sdk-golang/okta"
-	"github.com/okta/okta-sdk-golang/okta/query"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/okta/okta-sdk-golang/v2/okta"
+	"github.com/okta/okta-sdk-golang/v2/okta/query"
 	"github.com/peterhellberg/link"
 	"github.com/pkg/errors"
 )
@@ -25,7 +27,8 @@ func groupIDsHash(v interface{}) int {
 }
 
 func listAppGroupAssignments(
-	fetch func(string, *query.Params) ([]*okta.ApplicationGroupAssignment, *okta.Response, error),
+	fetch func(context.Context, string, *query.Params) ([]*okta.ApplicationGroupAssignment, *okta.Response, error),
+	ctx context.Context,
 	appID string,
 ) ([]string, error) {
 
@@ -35,7 +38,7 @@ func listAppGroupAssignments(
 	}
 
 	for {
-		assignmentsPage, resp, err := fetch(appID, &qp)
+		assignmentsPage, resp, err := fetch(ctx, appID, &qp)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error listing group assignments for %s", appID)
 		}
@@ -68,10 +71,10 @@ func listAppGroupAssignments(
 func resourceAppGroupAssignments() *schema.Resource {
 	return &schema.Resource{
 		// No point in having an exist function, since only the group has to exist
-		Create: resourceAppGroupAssignmentsCreate,
-		Read:   resourceAppGroupAssignmentsRead,
-		Delete: resourceAppGroupAssignmentsDelete,
-		Update: resourceAppGroupAssignmentsUpdate,
+		CreateContext: resourceAppGroupAssignmentsCreate,
+		ReadContext:   resourceAppGroupAssignmentsRead,
+		DeleteContext: resourceAppGroupAssignmentsDelete,
+		UpdateContext: resourceAppGroupAssignmentsUpdate,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -96,12 +99,13 @@ func resourceAppGroupAssignments() *schema.Resource {
 }
 
 func addGroupAssignments(
-	add func(string, string, okta.ApplicationGroupAssignment) (*okta.ApplicationGroupAssignment, *okta.Response, error),
+	add func(context.Context, string, string, okta.ApplicationGroupAssignment) (*okta.ApplicationGroupAssignment, *okta.Response, error),
+	ctx context.Context,
 	appID string,
 	groupIDs []string,
 ) error {
 	for _, groupID := range groupIDs {
-		_, _, err := add(appID, groupID, okta.ApplicationGroupAssignment{})
+		_, _, err := add(ctx, appID, groupID, okta.ApplicationGroupAssignment{})
 		if err != nil {
 			return errors.Wrapf(err, "could not assign group %s, to application %s", groupID, appID)
 		}
@@ -109,12 +113,13 @@ func addGroupAssignments(
 	return nil
 }
 func deleteGroupAssignments(
-	delete func(string, string) (*okta.Response, error),
+	delete func(context.Context, string, string) (*okta.Response, error),
+	ctx context.Context,
 	appID string,
 	groupIDs []string,
 ) error {
 	for _, groupID := range groupIDs {
-		_, err := delete(appID, groupID)
+		_, err := delete(ctx, appID, groupID)
 		if err != nil {
 			return errors.Wrapf(err, "could not delete assignment for group %s, to application %s", groupID, appID)
 		}
@@ -122,10 +127,10 @@ func deleteGroupAssignments(
 	return nil
 }
 
-func resourceAppGroupAssignmentsCreate(d *schema.ResourceData, m interface{}) error {
+func resourceAppGroupAssignmentsCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	_, ok := d.GetOk("group_ids")
 	if !ok {
-		return errors.New("group_ids is required")
+		return diag.Errorf("group_ids is required")
 	}
 	appID := d.Get("app_id").(string)
 	groupIDs := sets.NewStringSet()
@@ -135,16 +140,17 @@ func resourceAppGroupAssignmentsCreate(d *schema.ResourceData, m interface{}) er
 
 	err := addGroupAssignments(
 		getOktaClientFromMetadata(m).Application.CreateApplicationGroupAssignment,
+		ctx,
 		appID,
 		groupIDs.List(),
 	)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
-	return resourceAppGroupAssignmentsRead(d, m)
+	return resourceAppGroupAssignmentsRead(ctx, d, m)
 }
 
-func resourceAppGroupAssignmentsUpdate(d *schema.ResourceData, m interface{}) error {
+func resourceAppGroupAssignmentsUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	if !d.HasChange("group_ids") {
 		return nil // no change we're good
 	}
@@ -168,34 +174,37 @@ func resourceAppGroupAssignmentsUpdate(d *schema.ResourceData, m interface{}) er
 
 	err := addGroupAssignments(
 		client.Application.CreateApplicationGroupAssignment,
+		ctx,
 		appID,
 		toAdd.List(),
 	)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	err = deleteGroupAssignments(
 		client.Application.DeleteApplicationGroupAssignment,
+		ctx,
 		appID,
 		toRemove.List(),
 	)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
-	return resourceAppGroupAssignmentsRead(d, m)
+	return resourceAppGroupAssignmentsRead(ctx, d, m)
 }
 
-func resourceAppGroupAssignmentsRead(d *schema.ResourceData, m interface{}) error {
+func resourceAppGroupAssignmentsRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	appID := d.Get("app_id").(string)
 
 	assignments, err := listAppGroupAssignments(
 		getOktaClientFromMetadata(m).Application.ListApplicationGroupAssignments,
+		ctx,
 		appID,
 	)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	d.SetId(appID)
@@ -203,7 +212,7 @@ func resourceAppGroupAssignmentsRead(d *schema.ResourceData, m interface{}) erro
 	return nil
 }
 
-func resourceAppGroupAssignmentsDelete(d *schema.ResourceData, m interface{}) error {
+func resourceAppGroupAssignmentsDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	_, ok := d.GetOk("group_ids")
 	if !ok {
 		return nil // no group ids to delete
@@ -214,9 +223,14 @@ func resourceAppGroupAssignmentsDelete(d *schema.ResourceData, m interface{}) er
 		groupIDs = append(groupIDs, groupID.(string))
 	}
 
-	return deleteGroupAssignments(
+	err := deleteGroupAssignments(
 		getOktaClientFromMetadata(m).Application.DeleteApplicationGroupAssignment,
+		ctx,
 		d.Get("app_id").(string),
 		groupIDs,
 	)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	return nil
 }

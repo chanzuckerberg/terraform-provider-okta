@@ -1,17 +1,16 @@
 package okta
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
-
-	"github.com/terraform-providers/terraform-provider-okta/sdk"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/okta/okta-sdk-golang/v2/okta"
 )
 
 func TestAccOktaEventHook_crud(t *testing.T) {
@@ -23,16 +22,16 @@ func TestAccOktaEventHook_crud(t *testing.T) {
 	activatedConfig := mgr.GetFixtures("basic_activated.tf", ri, t)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: createCheckResourceDestroy(eventHook, eventHookExists),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProvidersFactories,
+		CheckDestroy:      createCheckResourceDestroy(eventHook, eventHookExists),
 		Steps: []resource.TestStep{
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					ensureResourceExists(resourceName, eventHookExists),
 					resource.TestCheckResourceAttr(resourceName, "name", buildResourceName(ri)),
-					resource.TestCheckResourceAttr(resourceName, "status", "ACTIVE"),
+					resource.TestCheckResourceAttr(resourceName, "status", statusActive),
 					resource.TestCheckResourceAttr(resourceName, "channel.type", "HTTP"),
 					resource.TestCheckResourceAttr(resourceName, "channel.version", "1.0.0"),
 					resource.TestCheckResourceAttr(resourceName, "channel.uri", "https://example.com/test"),
@@ -41,7 +40,7 @@ func TestAccOktaEventHook_crud(t *testing.T) {
 					testCheckResourceSetAttr(
 						resourceName,
 						"events",
-						eventSet(&sdk.EventHookEvents{
+						eventSet(&okta.EventSubscriptions{
 							Type:  "EVENT_TYPE",
 							Items: []string{"user.lifecycle.create", "user.lifecycle.delete.initiated"},
 						}),
@@ -53,7 +52,7 @@ func TestAccOktaEventHook_crud(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					ensureResourceExists(resourceName, eventHookExists),
 					resource.TestCheckResourceAttr(resourceName, "name", buildResourceName(ri)),
-					resource.TestCheckResourceAttr(resourceName, "status", "INACTIVE"),
+					resource.TestCheckResourceAttr(resourceName, "status", statusInactive),
 					resource.TestCheckResourceAttr(resourceName, "channel.type", "HTTP"),
 					resource.TestCheckResourceAttr(resourceName, "channel.version", "1.0.0"),
 					resource.TestCheckResourceAttr(resourceName, "channel.uri", "https://example.com/testUpdated"),
@@ -62,12 +61,12 @@ func TestAccOktaEventHook_crud(t *testing.T) {
 					testCheckResourceSetAttr(
 						resourceName,
 						"headers",
-						testMakeEventHookHeadersSet([]sdk.EventHookHeader{
-							sdk.EventHookHeader{
+						testMakeEventHookHeadersSet([]*okta.EventHookChannelConfigHeader{
+							{
 								Key:   "x-test-header",
 								Value: "test stuff",
 							},
-							sdk.EventHookHeader{
+							{
 								Key:   "x-another-header",
 								Value: "more test stuff",
 							},
@@ -76,15 +75,14 @@ func TestAccOktaEventHook_crud(t *testing.T) {
 					testCheckResourceSetAttr(
 						resourceName,
 						"events",
-						eventSet(
-							&sdk.EventHookEvents{
-								Type: "EVENT_TYPE",
-								Items: []string{
-									"user.lifecycle.create",
-									"user.lifecycle.delete.initiated",
-									"user.account.update_profile",
-								},
+						eventSet(&okta.EventSubscriptions{
+							Type: "EVENT_TYPE",
+							Items: []string{
+								"user.lifecycle.create",
+								"user.lifecycle.delete.initiated",
+								"user.account.update_profile",
 							},
+						},
 						),
 					),
 				),
@@ -94,7 +92,7 @@ func TestAccOktaEventHook_crud(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					ensureResourceExists(resourceName, eventHookExists),
 					resource.TestCheckResourceAttr(resourceName, "name", buildResourceName(ri)),
-					resource.TestCheckResourceAttr(resourceName, "status", "ACTIVE"),
+					resource.TestCheckResourceAttr(resourceName, "status", statusActive),
 					resource.TestCheckResourceAttr(resourceName, "channel.type", "HTTP"),
 					resource.TestCheckResourceAttr(resourceName, "channel.version", "1.0.0"),
 					resource.TestCheckResourceAttr(resourceName, "channel.uri", "https://example.com/test"),
@@ -103,7 +101,7 @@ func TestAccOktaEventHook_crud(t *testing.T) {
 					testCheckResourceSetAttr(
 						resourceName,
 						"events",
-						eventSet(&sdk.EventHookEvents{
+						eventSet(&okta.EventSubscriptions{
 							Type:  "EVENT_TYPE",
 							Items: []string{"user.lifecycle.create", "user.lifecycle.delete.initiated"},
 						}),
@@ -115,14 +113,14 @@ func TestAccOktaEventHook_crud(t *testing.T) {
 }
 
 func eventHookExists(id string) (bool, error) {
-	_, res, err := getSupplementFromMetadata(testAccProvider.Meta()).GetEventHook(id)
-	if err != nil && res.StatusCode != http.StatusNotFound {
+	eh, resp, err := getOktaClientFromMetadata(testAccProvider.Meta()).EventHook.GetEventHook(context.Background(), id)
+	if err := suppressErrorOn404(resp, err); err != nil {
 		return false, err
 	}
-	return res.StatusCode != http.StatusNotFound, nil
+	return eh != nil, nil
 }
 
-func testMakeEventHookHeadersSet(headers []sdk.EventHookHeader) *schema.Set {
+func testMakeEventHookHeadersSet(headers []*okta.EventHookChannelConfigHeader) *schema.Set {
 	h := make([]interface{}, len(headers))
 	for i, header := range headers {
 		h[i] = map[string]interface{}{
@@ -130,24 +128,23 @@ func testMakeEventHookHeadersSet(headers []sdk.EventHookHeader) *schema.Set {
 			"value": header.Value,
 		}
 	}
-
 	return schema.NewSet(schema.HashResource(headerSchema), h)
 }
 
 // Create a TestCheckFunc that compares a Set to the current state
 // Works for TypeSet attributes with TypeString elements or Resource elements
 // Resource elements cannot be nested
-func testCheckResourceSetAttr(resourceName string, attribute string, set *schema.Set) resource.TestCheckFunc {
+func testCheckResourceSetAttr(resourceName, attribute string, set *schema.Set) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		ms := s.RootModule()
 		rs, ok := ms.Resources[resourceName]
 		if !ok {
-			return fmt.Errorf("Not found: %s in %s", resourceName, ms.Path)
+			return fmt.Errorf("not found: %s in %s", resourceName, ms.Path)
 		}
 
 		is := rs.Primary
 		if is == nil {
-			return fmt.Errorf("No primary instance: %s in %s", resourceName, ms.Path)
+			return fmt.Errorf("no primary instance: %s in %s", resourceName, ms.Path)
 		}
 
 		// Look through all attributes looking for attributes that match the one we're looking for
@@ -170,7 +167,9 @@ func testCheckResourceSetAttr(resourceName string, attribute string, set *schema
 		// ]
 		found := make(map[string]interface{})
 		for k, v := range is.Attributes {
-			if strings.HasPrefix(k, attribute) && !strings.HasSuffix(k, ".#") {
+			if strings.HasPrefix(k, attribute) &&
+				!strings.HasSuffix(k, ".#") &&
+				!strings.HasSuffix(k, ".%") {
 				// k will be "attribute.12345" or "attribute.12345.subAttribute"
 				// This will split the attribute key into either two or three peices.
 				// If this attribute is a set of strings, then it will be two elements:
