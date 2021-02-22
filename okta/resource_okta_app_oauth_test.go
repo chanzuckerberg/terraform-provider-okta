@@ -249,6 +249,14 @@ func TestAccAppOauth_serviceWithJWKS(t *testing.T) {
 	})
 }
 
+// Tests that handle groups and users is always nill
+func TestNilHandleGroupsAndUsers(t *testing.T) {
+	res := handleAppGroupsAndUsers(context.Background(), "some id", nil, nil)
+	if res != nil {
+		t.FailNow()
+	}
+}
+
 func createDoesAppExist(app okta.App) func(string) (bool, error) {
 	return func(id string) (bool, error) {
 		client := getOktaClientFromMetadata(testAccProvider.Meta())
