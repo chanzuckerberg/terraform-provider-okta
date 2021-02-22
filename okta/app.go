@@ -332,6 +332,8 @@ func containsAppUser(userList []*okta.AppUser, id string) bool {
 //                      an assignment resource.
 // Handles the assigning of groups and users to Applications. Does so asynchronously.
 func handleAppGroupsAndUsers(ctx context.Context, id string, d *schema.ResourceData, m interface{}) error {
+	return nil
+
 	var wg sync.WaitGroup
 	resultChan := make(chan []*result, 1)
 	client := getOktaClientFromMetadata(m)
