@@ -2,6 +2,7 @@ package okta
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -149,7 +150,10 @@ func resourceGroupRuleDelete(ctx context.Context, d *schema.ResourceData, m inte
 			return diag.Errorf("failed to deactivate group rule before removing: %v", err)
 		}
 	}
-	_, err := client.Group.DeleteGroupRule(ctx, d.Id())
+	// HACK(el): when we delete group rules, unassign users.
+	// untangle when https://github.com/okta/terraform-provider-okta/pull/388/files released
+	idWithRemove := fmt.Sprintf("%s?removeUsers=true", d.Id())
+	_, err := client.Group.DeleteGroupRule(ctx, idWithRemove)
 	if err != nil {
 		return diag.Errorf("failed to delete group rule: %v", err)
 	}
