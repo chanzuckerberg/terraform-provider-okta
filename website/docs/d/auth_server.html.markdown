@@ -30,7 +30,7 @@ data "okta_auth_server" "example" {
 
 - `description` - description of Authorization server.
 
-- `audiences` - array of audiences,
+- `audiences` - array of audiences.
 
 - `kid` - auth server key id.
 
@@ -41,3 +41,7 @@ data "okta_auth_server" "example" {
 - `credentials_rotation_mode` - mode of credential rotation, auto or manual.
 
 - `status` - the activation status of the authorization server.
+
+- `issuer` - The complete URL of the authorization server. This becomes the `iss` claim in an access token.
+
+- `issuer_mode` - Can be set to `"CUSTOM_URL"` or `"ORG_URL"`

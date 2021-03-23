@@ -146,47 +146,6 @@ var baseAppSwaSchema = map[string]*schema.Schema{
 	},
 }
 
-var attributeStatements = map[string]*schema.Schema{
-	"filter_type": {
-		Type:        schema.TypeString,
-		Optional:    true,
-		Description: "Type of group attribute filter",
-	},
-	"filter_value": {
-		Type:        schema.TypeString,
-		Optional:    true,
-		Description: "Filter value to use",
-	},
-	"name": {
-		Type:     schema.TypeString,
-		Required: true,
-	},
-	"namespace": {
-		Type:     schema.TypeString,
-		Optional: true,
-		Default:  "urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified",
-		ValidateDiagFunc: stringInSlice([]string{
-			"urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified",
-			"urn:oasis:names:tc:SAML:2.0:attrname-format:uri",
-			"urn:oasis:names:tc:SAML:2.0:attrname-format:basic",
-		}),
-	},
-	"type": {
-		Type:     schema.TypeString,
-		Optional: true,
-		Default:  "EXPRESSION",
-		ValidateDiagFunc: stringInSlice([]string{
-			"EXPRESSION",
-			"GROUP",
-		}),
-	},
-	"values": {
-		Type:     schema.TypeList,
-		Optional: true,
-		Elem:     &schema.Schema{Type: schema.TypeString},
-	},
-}
-
 var appSamlDiffSuppressFunc = func(k, old, new string, d *schema.ResourceData) bool {
 	// Conditional default
 	return new == "" && old == "http://www.okta.com/${org.externalKey}"
@@ -257,19 +216,13 @@ func fetchAppByID(ctx context.Context, id string, m interface{}, app okta.App) e
 	_, resp, err := getOktaClientFromMetadata(m).Application.GetApplication(ctx, id, app, nil)
 	// We don't want to consider a 404 an error in some cases and thus the delineation.
 	// Check if app's ID is set to ensure that app exists
-	if err := suppressErrorOn404(resp, err); err != nil {
-		return err
-	}
-	return nil
+	return suppressErrorOn404(resp, err)
 }
 
 func updateAppByID(ctx context.Context, id string, m interface{}, app okta.App) error {
 	_, resp, err := getOktaClientFromMetadata(m).Application.UpdateApplication(ctx, id, app)
 	// We don't want to consider a 404 an error in some cases and thus the delineation
-	if err := suppressErrorOn404(resp, err); err != nil {
-		return err
-	}
-	return nil
+	return suppressErrorOn404(resp, err)
 }
 
 func handleAppGroups(ctx context.Context, id string, d *schema.ResourceData, client *okta.Client) []func() error {
@@ -327,6 +280,18 @@ func containsAppUser(userList []*okta.AppUser, id string) bool {
 	return false
 }
 
+func shouldupdateuser(userList []*okta.AppUser, id, username string) bool {
+	for _, user := range userList {
+		if user.Id == id &&
+			user.Scope == userScope &&
+			user.Credentials != nil &&
+			user.Credentials.UserName != username {
+			return true
+		}
+	}
+	return false
+}
+
 // NOTE(el) 2020-10-15: We explicitly return nil early here
 //                      Assignments must not be handled by the application resources but rather by
 //                      an assignment resource.
@@ -359,17 +324,14 @@ func handleAppUsers(ctx context.Context, id string, d *schema.ResourceData, clie
 	if set, ok := d.GetOk("users"); ok {
 		users = set.(*schema.Set).List()
 		userIDList = make([]string, len(users))
-
 		for i, user := range users {
 			userProfile := user.(map[string]interface{})
 			uID := userProfile["id"].(string)
+			username := userProfile["username"].(string)
 			userIDList[i] = uID
-
+			// Not required
+			password, _ := userProfile["password"].(string)
 			if !containsAppUser(existingUsers, uID) {
-				username := userProfile["username"].(string)
-				// Not required
-				password, _ := userProfile["password"].(string)
-
 				asyncActionList = append(asyncActionList, func() error {
 					_, _, err := client.Application.AssignUserToApplication(ctx, id, okta.AppUser{
 						Id: uID,
@@ -380,7 +342,19 @@ func handleAppUsers(ctx context.Context, id string, d *schema.ResourceData, clie
 							},
 						},
 					})
-
+					return err
+				})
+			} else if shouldUpdateUser(existingUsers, uID, username) {
+				asyncActionList = append(asyncActionList, func() error {
+					_, _, err := client.Application.UpdateApplicationUser(ctx, id, uID, okta.AppUser{
+						Id: uID,
+						Credentials: &okta.AppUserCredentials{
+							UserName: username,
+							Password: &okta.AppUserPasswordCredential{
+								Value: password,
+							},
+						},
+					})
 					return err
 				})
 			}
@@ -438,9 +412,18 @@ func syncGroupsAndUsers(ctx context.Context, id string, d *schema.ResourceData, 
 
 	for _, user := range userList {
 		if user.Scope == userScope {
+			var un, up string
+			if user.Credentials != nil {
+				un = user.Credentials.UserName
+				if user.Credentials.Password != nil {
+					up = user.Credentials.Password.Value
+				}
+			}
 			flattenedUserList = append(flattenedUserList, map[string]interface{}{
 				"id":       user.Id,
-				"username": user.Credentials.UserName,
+				"username": un,
+				"scope":    user.Scope,
+				"password": up,
 			})
 		}
 	}
@@ -474,25 +457,24 @@ func setAppSettings(d *schema.ResourceData, settings *okta.ApplicationSettingsAp
 	return d.Set("app_settings_json", string(payload))
 }
 
-func syncSamlSettings(d *schema.ResourceData, set *okta.SamlApplicationSettings) error {
-	_ = d.Set("default_relay_state", set.SignOn.DefaultRelayState)
-	_ = d.Set("sso_url", set.SignOn.SsoAcsUrl)
-	_ = d.Set("recipient", set.SignOn.Recipient)
-	_ = d.Set("destination", set.SignOn.Destination)
-	_ = d.Set("audience", set.SignOn.Audience)
-	_ = d.Set("idp_issuer", set.SignOn.IdpIssuer)
-	_ = d.Set("subject_name_id_template", set.SignOn.SubjectNameIdTemplate)
-	_ = d.Set("subject_name_id_format", set.SignOn.SubjectNameIdFormat)
-	_ = d.Set("response_signed", set.SignOn.ResponseSigned)
-	_ = d.Set("assertion_signed", set.SignOn.AssertionSigned)
-	_ = d.Set("signature_algorithm", set.SignOn.SignatureAlgorithm)
-	_ = d.Set("digest_algorithm", set.SignOn.DigestAlgorithm)
-	_ = d.Set("honor_force_authn", set.SignOn.HonorForceAuthn)
-	_ = d.Set("authn_context_class_ref", set.SignOn.AuthnContextClassRef)
-
-	if set.SignOn.AllowMultipleAcsEndpoints != nil {
-		if *set.SignOn.AllowMultipleAcsEndpoints {
-			acsEndpointsObj := set.SignOn.AcsEndpoints
+func setSamlSettings(d *schema.ResourceData, signOn *okta.SamlApplicationSettingsSignOn) error {
+	_ = d.Set("default_relay_state", signOn.DefaultRelayState)
+	_ = d.Set("sso_url", signOn.SsoAcsUrl)
+	_ = d.Set("recipient", signOn.Recipient)
+	_ = d.Set("destination", signOn.Destination)
+	_ = d.Set("audience", signOn.Audience)
+	_ = d.Set("idp_issuer", signOn.IdpIssuer)
+	_ = d.Set("subject_name_id_template", signOn.SubjectNameIdTemplate)
+	_ = d.Set("subject_name_id_format", signOn.SubjectNameIdFormat)
+	_ = d.Set("response_signed", signOn.ResponseSigned)
+	_ = d.Set("assertion_signed", signOn.AssertionSigned)
+	_ = d.Set("signature_algorithm", signOn.SignatureAlgorithm)
+	_ = d.Set("digest_algorithm", signOn.DigestAlgorithm)
+	_ = d.Set("honor_force_authn", signOn.HonorForceAuthn)
+	_ = d.Set("authn_context_class_ref", signOn.AuthnContextClassRef)
+	if signOn.AllowMultipleAcsEndpoints != nil {
+		if *signOn.AllowMultipleAcsEndpoints {
+			acsEndpointsObj := signOn.AcsEndpoints
 			if len(acsEndpointsObj) > 0 {
 				acsEndpoints := make([]string, len(acsEndpointsObj))
 				for i := range acsEndpointsObj {
@@ -505,7 +487,7 @@ func syncSamlSettings(d *schema.ResourceData, set *okta.SamlApplicationSettings)
 		}
 	}
 
-	attrStatements := set.SignOn.AttributeStatements
+	attrStatements := signOn.AttributeStatements
 	arr := make([]map[string]interface{}, len(attrStatements))
 
 	for i, st := range attrStatements {
@@ -518,7 +500,13 @@ func syncSamlSettings(d *schema.ResourceData, set *okta.SamlApplicationSettings)
 			"filter_value": st.FilterValue,
 		}
 	}
-
+	if signOn.Slo != nil && signOn.Slo.Enabled != nil && *signOn.Slo.Enabled {
+		_ = d.Set("single_logout_issuer", signOn.Slo.Issuer)
+		_ = d.Set("single_logout_url", signOn.Slo.LogoutUrl)
+		if len(signOn.SpCertificate.X5c) > 0 {
+			_ = d.Set("single_logout_certificate", signOn.SpCertificate.X5c[0])
+		}
+	}
 	return setNonPrimitives(d, map[string]interface{}{
 		"attribute_statements": arr,
 	})

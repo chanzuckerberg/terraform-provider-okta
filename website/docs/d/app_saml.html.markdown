@@ -34,8 +34,6 @@ data "okta_app_saml" "example" {
 
 - `label` - label of application.
 
-- `description` - description of application.
-
 - `name` - name of application.
 
 - `status` - status of application.
@@ -50,11 +48,11 @@ data "okta_app_saml" "example" {
 
 - `default_relay_state` - Identifies a specific application resource in an IDP initiated SSO scenario.
 
-- `sso_url` - Single Sign on Url.
+- `sso_url` - Single Sign-on Url.
 
 - `recipient` - The location where the app may present the SAML assertion.
 
-- `destination` - Identifies the location where the SAML response is intended to be sent inside of the SAML assertion.
+- `destination` - Identifies the location where the SAML response is intended to be sent inside the SAML assertion.
 
 - `audience` - Audience restriction.
 
@@ -80,7 +78,7 @@ data "okta_app_saml" "example" {
 
 - `authn_context_class_ref` - Identifies the SAML authentication context class for the assertion’s authentication statement.
 
-- `accessibility_self_service` - Enable self service.
+- `accessibility_self_service` - Enable self-service.
 
 - `accessibility_error_redirect_url` - Custom error page URL.
 
@@ -98,10 +96,16 @@ data "okta_app_saml" "example" {
 
 - `acs_endpoints` - An array of ACS endpoints. You can configure a maximum of 100 endpoints.
 
-- `attribute_statements` - (Optional) List of SAML Attribute statements.
-  - `name` - (Required) The name of the attribute statement.
-  - `filter_type` - (Optional) Type of group attribute filter.
-  - `filter_value` - (Optional) Filter value to use.
-  - `namespace` - (Optional) The attribute namespace. It can be set to `"urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified"`, `"urn:oasis:names:tc:SAML:2.0:attrname-format:uri"`, or `"urn:oasis:names:tc:SAML:2.0:attrname-format:basic"`.
-  - `type` - (Optional) The type of attribute statement value. Can be `"EXPRESSION"` or `"GROUP"`.
-  - `values` - (Optional) Array of values to use.
+- `attribute_statements` - List of SAML Attribute statements.
+  - `name` - The name of the attribute statement.
+  - `filter_type` - Type of group attribute filter.
+  - `filter_value` - Filter value to use.
+  - `namespace` - The attribute namespace.
+  - `type` - The type of attribute statement value.
+  - `values` - Array of values to use.
+
+- `single_logout_issuer` - The issuer of the Service Provider that generates the Single Logout request.
+
+- `single_logout_url` - The location where the logout response is sent.
+
+- `single_logout_certificate` - x509 encoded certificate that the Service Provider uses to sign Single Logout requests.

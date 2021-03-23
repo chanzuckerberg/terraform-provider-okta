@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/oktadeveloper/terraform-provider-okta/sdk"
+	"github.com/okta/terraform-provider-okta/sdk"
 )
 
 const baseSchema = "base"
@@ -18,19 +18,6 @@ func resourceUserBaseSchema() *schema.Resource {
 		ReadContext:   resourceUserBaseSchemaRead,
 		UpdateContext: resourceUserBaseSchemaUpdate,
 		DeleteContext: resourceUserBaseSchemaDelete,
-		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, v interface{}) error {
-			_, ok := d.GetOk("pattern")
-			if d.Get("index").(string) != "login" {
-				if ok {
-					return fmt.Errorf("'pattern' property is only allowed to be set for 'login'")
-				}
-				return nil
-			}
-			if !d.Get("required").(bool) {
-				return fmt.Errorf("'login' base schema is always required attribute")
-			}
-			return nil
-		},
 		Importer: &schema.ResourceImporter{
 			StateContext: func(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
 				resourceIndex := d.Id()
@@ -46,7 +33,21 @@ func resourceUserBaseSchema() *schema.Resource {
 			},
 		},
 		SchemaVersion: 1,
-		Schema:        buildSchema(userBaseSchemaSchema, userTypeSchema, userPatternSchema),
+		Schema: buildSchema(
+			userBaseSchemaSchema,
+			userTypeSchema,
+			userPatternSchema,
+			map[string]*schema.Schema{
+				"master": {
+					Type:     schema.TypeString,
+					Optional: true,
+					// Accepting an empty value to allow for zero value (when provisioning is off)
+					ValidateDiagFunc: stringInSlice([]string{"PROFILE_MASTER", "OKTA", "OVERRIDE", ""}),
+					Description:      "SubSchema profile manager, if not set it will inherit its setting.",
+					Default:          "PROFILE_MASTER",
+				},
+			},
+		),
 		StateUpgraders: []schema.StateUpgrader{
 			{
 				Type: resourceUserBaseSchemaResourceV0().CoreConfigSchema().ImpliedType(),
@@ -65,6 +66,10 @@ func resourceUserBaseSchemaResourceV0() *schema.Resource {
 }
 
 func resourceUserBaseSchemaCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+	err := validateUserBaseSchema(d)
+	if err != nil {
+		return diag.FromErr(err)
+	}
 	schemaUrl, err := getUserTypeSchemaUrl(ctx, getOktaClientFromMetadata(m), d.Get("user_type").(string))
 	if err != nil {
 		return diag.Errorf("failed to create user base schema: %v", err)
@@ -102,6 +107,10 @@ func getBaseSubSchema(ctx context.Context, client *sdk.ApiSupplement, schemaUrl 
 }
 
 func resourceUserBaseSchemaUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+	err := validateUserBaseSchema(d)
+	if err != nil {
+		return diag.FromErr(err)
+	}
 	schemaUrl, err := getUserTypeSchemaUrl(ctx, getOktaClientFromMetadata(m), d.Get("user_type").(string))
 	if err != nil {
 		return diag.Errorf("failed to update user base schema: %v", err)
@@ -113,7 +122,7 @@ func resourceUserBaseSchemaUpdate(ctx context.Context, d *schema.ResourceData, m
 }
 
 // can't delete Base schema
-func resourceUserBaseSchemaDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func resourceUserBaseSchemaDelete(context.Context, *schema.ResourceData, interface{}) diag.Diagnostics {
 	return nil
 }
 
@@ -127,6 +136,20 @@ func updateBaseSubschema(ctx context.Context, client *sdk.ApiSupplement, schemaU
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update base user schema property: %v", err)
+	}
+	return nil
+}
+
+func validateUserBaseSchema(d *schema.ResourceData) error {
+	_, ok := d.GetOk("pattern")
+	if d.Get("index").(string) != "login" {
+		if ok {
+			return fmt.Errorf("'pattern' property is only allowed to be set for 'login'")
+		}
+		return nil
+	}
+	if !d.Get("required").(bool) {
+		return fmt.Errorf("'login' base schema is always required attribute")
 	}
 	return nil
 }

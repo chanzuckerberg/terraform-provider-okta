@@ -2,10 +2,11 @@ package okta
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/oktadeveloper/terraform-provider-okta/sdk"
+	"github.com/okta/terraform-provider-okta/sdk"
 )
 
 // Predefined second authentication factors. They must be activated in order to use them in MFA policies.
@@ -33,12 +34,15 @@ func resourceFactor() *schema.Resource {
 					sdk.GoogleOtpFactor,
 					sdk.OktaCallFactor,
 					sdk.OktaOtpFactor,
+					sdk.OktaPasswordFactor,
 					sdk.OktaPushFactor,
 					sdk.OktaQuestionFactor,
 					sdk.OktaSmsFactor,
+					sdk.OktaEmailFactor,
 					sdk.RsaTokenFactor,
 					sdk.SymantecVipFactor,
 					sdk.YubikeyTokenFactor,
+					sdk.HotpFactor,
 				}),
 				Description: "Factor provider ID",
 				ForceNew:    true,
@@ -54,7 +58,7 @@ func resourceFactor() *schema.Resource {
 }
 
 func resourceFactorPut(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	factor, err := findFactor(ctx, d, m)
+	factor, _, err := getSupplementFromMetadata(m).GetFactor(ctx, d.Get("provider_id").(string))
 	if err != nil {
 		return diag.Errorf("failed to find factor: %v", err)
 	}
@@ -70,8 +74,8 @@ func resourceFactorPut(ctx context.Context, d *schema.ResourceData, m interface{
 }
 
 func resourceFactorRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	factor, err := findFactor(ctx, d, m)
-	if err != nil {
+	factor, resp, err := getSupplementFromMetadata(m).GetFactor(ctx, d.Get("provider_id").(string))
+	if err := suppressErrorOn404(resp, err); err != nil {
 		return diag.Errorf("failed to find factor: %v", err)
 	}
 	if factor == nil {
@@ -87,9 +91,13 @@ func resourceFactorDelete(ctx context.Context, d *schema.ResourceData, m interfa
 	if !d.Get("active").(bool) {
 		return nil
 	}
-	_, _, err := getSupplementFromMetadata(m).DeactivateFactor(ctx, d.Id())
+	_, resp, err := getSupplementFromMetadata(m).DeactivateFactor(ctx, d.Id())
+	// http.StatusBadRequest means that factor can not be deactivated
+	if resp != nil && resp.StatusCode == http.StatusBadRequest {
+		return nil
+	}
 	if err != nil {
-		return diag.Errorf("failed to deactivate factor: %v", err)
+		return diag.Errorf("failed to deactivate '%s' factor: %v", d.Id(), err)
 	}
 	return nil
 }
@@ -103,22 +111,6 @@ func activateFactor(ctx context.Context, d *schema.ResourceData, m interface{}) 
 		_, _, err = getSupplementFromMetadata(m).DeactivateFactor(ctx, id)
 	}
 	return err
-}
-
-// This API is in Beta hence the inability to do a single get. I must list then find.
-// Fear is clearly not a factor for me.
-func findFactor(ctx context.Context, d *schema.ResourceData, m interface{}) (*sdk.Factor, error) {
-	factorList, _, err := getSupplementFromMetadata(m).ListFactors(ctx)
-	if err != nil {
-		return nil, err
-	}
-	id := d.Get("provider_id").(string)
-	for _, f := range factorList {
-		if f.Id == id {
-			return &f, nil
-		}
-	}
-	return nil, nil
 }
 
 func statusMismatch(d *schema.ResourceData, factor *sdk.Factor) bool {

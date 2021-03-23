@@ -66,7 +66,6 @@ func resourceUser() *schema.Resource {
 					return nil, err
 				}
 				d.SetId(user.Id)
-
 				return []*schema.ResourceData{d}, nil
 			},
 		},
@@ -211,14 +210,16 @@ func resourceUser() *schema.Resource {
 				Description: "User primary phone number",
 			},
 			"profile_url": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "User online profile (web page)",
+				Type:             schema.TypeString,
+				Optional:         true,
+				Description:      "User online profile (web page)",
+				ValidateDiagFunc: stringIsURL(validURLSchemes...),
 			},
 			"second_email": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "User secondary email address, used for account recovery",
+				Type:             schema.TypeString,
+				Optional:         true,
+				Description:      "User secondary email address, used for account recovery",
+				ValidateDiagFunc: stringIsEmail,
 			},
 			"state": {
 				Type:        schema.TypeString,
@@ -364,9 +365,7 @@ func resourceUserRead(ctx context.Context, d *schema.ResourceData, m interface{}
 		d.SetId("")
 		return nil
 	}
-	_ = d.Set("status", mapStatus(user.Status))
 	_ = d.Set("raw_status", user.Status)
-
 	rawMap := flattenUser(user)
 	err = setNonPrimitives(d, rawMap)
 	if err != nil {

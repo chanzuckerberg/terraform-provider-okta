@@ -24,9 +24,10 @@ func resourceAppOAuthRedirectURI() *schema.Resource {
 				ForceNew: true,
 			},
 			"uri": {
-				Required:    true,
-				Type:        schema.TypeString,
-				Description: "Redirect URI to append to Okta OIDC application.",
+				Required:         true,
+				Type:             schema.TypeString,
+				Description:      "Redirect URI to append to Okta OIDC application.",
+				ValidateDiagFunc: stringIsURL(validURLSchemes...),
 			},
 		},
 	}
@@ -42,7 +43,7 @@ func resourceAppOAuthRedirectURICreate(ctx context.Context, d *schema.ResourceDa
 }
 
 // read does nothing due to the nature of this resource
-func resourceAppOAuthRedirectURIRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func resourceAppOAuthRedirectURIRead(context.Context, *schema.ResourceData, interface{}) diag.Diagnostics {
 	return nil
 }
 

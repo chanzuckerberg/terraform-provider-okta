@@ -2,10 +2,11 @@ package okta
 
 import (
 	"context"
-	"log"
+	"encoding/json"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/okta/okta-sdk-golang/v2/okta"
 )
 
 func dataSourceApp() *schema.Resource {
@@ -33,10 +34,6 @@ func dataSourceApp() *schema.Resource {
 				Default:     true,
 				Description: "Search only ACTIVE applications.",
 			},
-			"description": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
 			"name": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -45,6 +42,11 @@ func dataSourceApp() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+			"links": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "Discoverable resources related to the app",
+			},
 		},
 	}
 }
@@ -52,23 +54,34 @@ func dataSourceApp() *schema.Resource {
 func dataSourceAppRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	filters, err := getAppFilters(d)
 	if err != nil {
-		return diag.Errorf("failed to get filters: %v", err)
+		return diag.Errorf("invalid app filters: %v", err)
 	}
-	appList, err := listApps(ctx, m.(*Config), filters)
-	if err != nil {
-		return diag.Errorf("failed to list apps: %v", err)
+	var app *okta.Application
+	if filters.ID != "" {
+		respApp, _, err := getOktaClientFromMetadata(m).Application.GetApplication(ctx, filters.ID, okta.NewApplication(), nil)
+		if err != nil {
+			return diag.Errorf("failed get app by ID: %v", err)
+		}
+		app = respApp.(*okta.Application)
+	} else {
+		appList, err := listApps(ctx, m, filters, 1)
+		if err != nil {
+			return diag.Errorf("failed to list apps: %v", err)
+		}
+		if len(appList) < 1 {
+			return diag.Errorf("no application found with the provided filter: %+v", filters)
+		}
+		if filters.Label != "" && appList[0].Label != filters.Label {
+			return diag.Errorf("no application found with provided label: %s", filters.Label)
+		}
+		logger(m).Info("found multiple applications with the criteria supplied, using the first one, sorted by creation date")
+		app = appList[0]
 	}
-	if len(appList) < 1 {
-		return diag.Errorf("no application found with provided filter: %+v", filters)
-	} else if len(appList) > 1 {
-		log.Print("found multiple applications with the criteria supplied, using the first one, sorted by creation date.\n")
-	}
-	app := appList[0]
-	d.SetId(app.ID)
+	d.SetId(app.Id)
 	_ = d.Set("label", app.Label)
-	_ = d.Set("description", app.Description)
 	_ = d.Set("name", app.Name)
 	_ = d.Set("status", app.Status)
-
+	p, _ := json.Marshal(app.Links)
+	_ = d.Set("links", string(p))
 	return nil
 }

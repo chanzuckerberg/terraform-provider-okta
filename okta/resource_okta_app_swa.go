@@ -11,9 +11,6 @@ import (
 
 func resourceAppSwa() *schema.Resource {
 	return &schema.Resource{
-		CustomizeDiff: func(_ context.Context, diff *schema.ResourceDiff, v interface{}) error {
-			return nil
-		},
 		CreateContext: resourceAppSwaCreate,
 		ReadContext:   resourceAppSwaRead,
 		UpdateContext: resourceAppSwaUpdate,
@@ -131,11 +128,10 @@ func buildAppSwa(d *schema.ResourceData) *okta.SwaApplication {
 	app := okta.NewSwaApplication()
 	app.Label = d.Get("label").(string)
 	name := d.Get("preconfigured_app").(string)
-
 	if name != "" {
 		app.Name = name
+		app.SignOnMode = "AUTO_LOGIN" // in case pre-configured app has more then one sign-on modes
 	}
-
 	app.Settings = &okta.SwaApplicationSettings{
 		App: &okta.SwaApplicationSettingsApplication{
 			ButtonField:   d.Get("button_field").(string),
@@ -146,6 +142,12 @@ func buildAppSwa(d *schema.ResourceData) *okta.SwaApplication {
 		},
 	}
 	app.Visibility = buildVisibility(d)
-
+	app.Credentials = &okta.ApplicationCredentials{
+		UserNameTemplate: &okta.ApplicationCredentialsUsernameTemplate{
+			Suffix:   d.Get("user_name_template_suffix").(string),
+			Template: d.Get("user_name_template").(string),
+			Type:     d.Get("user_name_template_type").(string),
+		},
+	}
 	return app
 }

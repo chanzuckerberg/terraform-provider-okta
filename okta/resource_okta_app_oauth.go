@@ -3,13 +3,13 @@ package okta
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/okta/okta-sdk-golang/v2/okta"
 	"github.com/okta/okta-sdk-golang/v2/okta/query"
-	"github.com/oktadeveloper/terraform-provider-okta/sdk"
 )
 
 type (
@@ -86,8 +86,8 @@ func resourceAppOAuth() *schema.Resource {
 		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, v interface{}) error {
 			// Force new if omit_secret goes from true to false
 			if d.Id() != "" {
-				old, new := d.GetChange("omit_secret")
-				if old.(bool) && !new.(bool) {
+				oldValue, newValue := d.GetChange("omit_secret")
+				if oldValue.(bool) && !newValue.(bool) {
 					return d.ForceNew("omit_secret")
 				}
 			}
@@ -154,19 +154,37 @@ func resourceAppOAuth() *schema.Resource {
 				Description: "Requested key rotation mode.",
 			},
 			"client_uri": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "URI to a web page providing information about the client.",
+				Type:             schema.TypeString,
+				Optional:         true,
+				Description:      "URI to a web page providing information about the client.",
+				ValidateDiagFunc: stringIsURL(validURLSchemes...),
 			},
 			"logo_uri": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "URI that references a logo for the client.",
+				Type:             schema.TypeString,
+				Optional:         true,
+				Description:      "URI that references a logo for the client.",
+				ValidateDiagFunc: stringIsURL(validURLSchemes...),
 			},
 			"login_uri": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "URI that initiates login.",
+			},
+			"login_mode": {
+				Type:             schema.TypeString,
+				Optional:         true,
+				Description:      "The type of Idp-Initiated login that the client supports, if any",
+				Default:          "DISABLED",
+				ValidateDiagFunc: stringInSlice([]string{"DISABLED", "SPEC", "OKTA"}),
+			},
+			"login_scopes": {
+				Type:     schema.TypeSet,
+				Optional: true,
+				Elem: &schema.Schema{
+					Type:             schema.TypeString,
+					ValidateDiagFunc: stringInSlice([]string{"openid", "profile", "email", "address", "phone"}),
+				},
+				Description: "List of scopes to use for the request",
 			},
 			"redirect_uris": {
 				Type:        schema.TypeSet,
@@ -198,16 +216,17 @@ func resourceAppOAuth() *schema.Resource {
 				Optional:    true,
 				Description: "List of OAuth 2.0 grant types. Conditional validation params found here https://developer.okta.com/docs/api/resources/apps#credentials-settings-details. Defaults to minimum requirements per app type.",
 			},
-			// "Early access" properties.. looks to be in beta which requires opt-in per account
 			"tos_uri": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "*Early Access Property*. URI to web page providing client tos (terms of service).",
+				Type:             schema.TypeString,
+				Optional:         true,
+				Description:      "URI to web page providing client tos (terms of service).",
+				ValidateDiagFunc: stringIsURL(validURLSchemes...),
 			},
 			"policy_uri": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "*Early Access Property*. URI to web page providing client policy document.",
+				Type:             schema.TypeString,
+				Optional:         true,
+				Description:      "URI to web page providing client policy document.",
+				ValidateDiagFunc: stringIsURL(validURLSchemes...),
 			},
 			"consent_method": {
 				Type:             schema.TypeString,
@@ -277,6 +296,12 @@ func resourceAppOAuth() *schema.Resource {
 					},
 				},
 			},
+			"implicit_assignment": {
+				Type:          schema.TypeBool,
+				Optional:      true,
+				Description:   "*Early Access Property*. Enable Federation Broker Mode.",
+				ConflictsWith: []string{"groups", "users"},
+			},
 		}),
 	}
 }
@@ -284,6 +309,9 @@ func resourceAppOAuth() *schema.Resource {
 func resourceAppOAuthCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	client := getOktaClientFromMetadata(m)
 	if err := validateGrantTypes(d); err != nil {
+		return diag.Errorf("failed to create OAuth application: %v", err)
+	}
+	if err := validateAppOAuth(d); err != nil {
 		return diag.Errorf("failed to create OAuth application: %v", err)
 	}
 	app := buildAppOAuth(d)
@@ -295,18 +323,21 @@ func resourceAppOAuthCreate(ctx context.Context, d *schema.ResourceData, m inter
 	}
 	d.SetId(app.Id)
 	if !d.Get("omit_secret").(bool) {
-		// Needs to be set immediately, not provided again after this
 		_ = d.Set("client_secret", app.Credentials.OauthClient.ClientSecret)
 	}
-	err = handleAppGroupsAndUsers(ctx, app.Id, d, m)
-	if err != nil {
-		return diag.Errorf("failed to handle groups and users for oauth application: %v", err)
+	// When the implicit_assignment is turned on, calls to the user/group assignments will error with a bad request
+	// So Skip setting assignments while this is on
+	if !d.Get("implicit_assignment").(bool) {
+		err = handleAppGroupsAndUsers(ctx, app.Id, d, m)
+		if err != nil {
+			return diag.Errorf("failed to handle groups and users for OAuth application: %v", err)
+		}
 	}
 	return resourceAppOAuthRead(ctx, d, m)
 }
 
 func resourceAppOAuthRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	app := sdk.NewOpenIdConnectApplication()
+	app := okta.NewOpenIdConnectApplication()
 	err := fetchApp(ctx, d, m, app)
 	if err != nil {
 		return diag.Errorf("failed to get OAuth application: %v", err)
@@ -326,7 +357,7 @@ func resourceAppOAuthRead(ctx context.Context, d *schema.ResourceData, m interfa
 	_ = d.Set("label", app.Label)
 	_ = d.Set("profile", rawProfile)
 	_ = d.Set("type", app.Settings.OauthClient.ApplicationType)
-	// Not setting client_secret, it is only provided on create for auth methods that require it
+	// Not setting client_secret, it is only provided on create and update for auth methods that require it
 	_ = d.Set("client_id", app.Credentials.OauthClient.ClientId)
 	_ = d.Set("token_endpoint_auth_method", app.Credentials.OauthClient.TokenEndpointAuthMethod)
 	_ = d.Set("auto_key_rotation", app.Credentials.OauthClient.AutoKeyRotation)
@@ -338,6 +369,9 @@ func resourceAppOAuthRead(ctx context.Context, d *schema.ResourceData, m interfa
 	_ = d.Set("auto_submit_toolbar", app.Visibility.AutoSubmitToolbar)
 	_ = d.Set("hide_ios", app.Visibility.Hide.IOS)
 	_ = d.Set("hide_web", app.Visibility.Hide.Web)
+	if app.Settings.ImplicitAssignment != nil {
+		_ = d.Set("implicit_assignment", *app.Settings.ImplicitAssignment)
+	}
 	if app.Settings.OauthClient.ConsentMethod != "" { // Early Access Property, might be empty
 		_ = d.Set("consent_method", app.Settings.OauthClient.ConsentMethod)
 	}
@@ -350,15 +384,15 @@ func resourceAppOAuthRead(ctx context.Context, d *schema.ResourceData, m interfa
 		_ = d.Set("client_secret", "")
 	}
 
-	if app.Settings.OauthClient.JWKS != nil {
-		jwks := app.Settings.OauthClient.JWKS.Keys
+	if app.Settings.OauthClient.Jwks != nil {
+		jwks := app.Settings.OauthClient.Jwks.Keys
 		arr := make([]map[string]interface{}, len(jwks))
 		for i, jwk := range jwks {
 			arr[i] = map[string]interface{}{
-				"kty": jwk.Type,
-				"kid": jwk.ID,
-				"e":   jwk.Exponent,
-				"n":   jwk.Modulus,
+				"kty": jwk.Kty,
+				"kid": jwk.Kid,
+				"e":   jwk.E,
+				"n":   jwk.N,
 			}
 		}
 		err = setNonPrimitives(d, map[string]interface{}{"jwks": arr})
@@ -375,15 +409,22 @@ func resourceAppOAuthRead(ctx context.Context, d *schema.ResourceData, m interfa
 	for i := range app.Settings.OauthClient.GrantTypes {
 		grantTypes[i] = string(*app.Settings.OauthClient.GrantTypes[i])
 	}
-	err = syncGroupsAndUsers(ctx, app.Id, d, m)
-	if err != nil {
-		return diag.Errorf("failed to sync groups and users for OAuth application: %v", err)
+	// When the implicit_assignment is turned on, calls to the user/group assignments will error with a bad request
+	// So Skip setting assignments while this is on
+	if !d.Get("implicit_assignment").(bool) {
+		if err = syncGroupsAndUsers(ctx, app.Id, d, m); err != nil {
+			return diag.Errorf("failed to sync groups and users for OAuth application: %v", err)
+		}
 	}
 	aggMap := map[string]interface{}{
 		"redirect_uris":             convertStringSetToInterface(app.Settings.OauthClient.RedirectUris),
 		"response_types":            convertStringSetToInterface(respTypes),
 		"grant_types":               convertStringSetToInterface(grantTypes),
 		"post_logout_redirect_uris": convertStringSetToInterface(app.Settings.OauthClient.PostLogoutRedirectUris),
+	}
+	if app.Settings.OauthClient.IdpInitiatedLogin != nil {
+		_ = d.Set("login_mode", app.Settings.OauthClient.IdpInitiatedLogin.Mode)
+		aggMap["login_scopes"] = convertStringSetToInterface(app.Settings.OauthClient.IdpInitiatedLogin.DefaultScope)
 	}
 	err = setNonPrimitives(d, aggMap)
 	if err != nil {
@@ -397,18 +438,28 @@ func resourceAppOAuthUpdate(ctx context.Context, d *schema.ResourceData, m inter
 	if err := validateGrantTypes(d); err != nil {
 		return diag.Errorf("failed to update OAuth application: %v", err)
 	}
+	if err := validateAppOAuth(d); err != nil {
+		return diag.Errorf("failed to create OAuth application: %v", err)
+	}
 	app := buildAppOAuth(d)
 	_, _, err := client.Application.UpdateApplication(ctx, d.Id(), app)
 	if err != nil {
 		return diag.Errorf("failed to update OAuth application: %v", err)
 	}
+	if !d.Get("omit_secret").(bool) {
+		_ = d.Set("client_secret", app.Credentials.OauthClient.ClientSecret)
+	}
 	err = setAppStatus(ctx, d, client, app.Status)
 	if err != nil {
 		return diag.Errorf("failed to set OAuth application status: %v", err)
 	}
-	err = handleAppGroupsAndUsers(ctx, app.Id, d, m)
-	if err != nil {
-		return diag.Errorf("failed to handle groups and users for OAuth application: %v", err)
+	// When the implicit_assignment is turned on, calls to the user/group assignments will error with a bad request
+	// So Skip setting assignments while this is on
+	if !d.Get("implicit_assignment").(bool) {
+		err = handleAppGroupsAndUsers(ctx, app.Id, d, m)
+		if err != nil {
+			return diag.Errorf("failed to handle groups and users for OAuth application: %v", err)
+		}
 	}
 	return resourceAppOAuthRead(ctx, d, m)
 }
@@ -421,12 +472,9 @@ func resourceAppOAuthDelete(ctx context.Context, d *schema.ResourceData, m inter
 	return nil
 }
 
-func buildAppOAuth(d *schema.ResourceData) *sdk.OpenIdConnectApplication {
+func buildAppOAuth(d *schema.ResourceData) *okta.OpenIdConnectApplication {
 	// Abstracts away name and SignOnMode which are constant for this app type.
-	app := sdk.NewOpenIdConnectApplication()
-
-	// Need to a bool pointer, it appears the Okta SDK uses this as a way to avoid false being omitted.
-	keyRotation := d.Get("auto_key_rotation").(bool)
+	app := okta.NewOpenIdConnectApplication()
 	appType := d.Get("type").(string)
 	grantTypes := convertInterfaceToStringSet(d.Get("grant_types"))
 	responseTypes := convertInterfaceToStringSetNullable(d.Get("response_types"))
@@ -434,7 +482,6 @@ func buildAppOAuth(d *schema.ResourceData) *sdk.OpenIdConnectApplication {
 	// If grant_types are not set, we default to the bare minimum.
 	if len(grantTypes) < 1 {
 		appMap := appGrantTypeMap[appType]
-
 		if appMap.RequiredGrantTypes == nil {
 			grantTypes = appMap.ValidGrantTypes
 		} else {
@@ -459,7 +506,7 @@ func buildAppOAuth(d *schema.ResourceData) *sdk.OpenIdConnectApplication {
 	authMethod := d.Get("token_endpoint_auth_method").(string)
 	app.Credentials = &okta.OAuthApplicationCredentials{
 		OauthClient: &okta.ApplicationCredentialsOAuthClient{
-			AutoKeyRotation:         &keyRotation,
+			AutoKeyRotation:         boolPtr(d.Get("auto_key_rotation").(bool)),
 			ClientId:                d.Get("client_id").(string),
 			TokenEndpointAuthMethod: authMethod,
 		},
@@ -483,37 +530,39 @@ func buildAppOAuth(d *schema.ResourceData) *sdk.OpenIdConnectApplication {
 		gt := okta.OAuthGrantType(grantTypes[i])
 		oktaGrantTypes[i] = &gt
 	}
-
-	app.Settings = &sdk.OpenIdConnectApplicationSettings{
-		OauthClient: &sdk.OpenIdConnectApplicationSettingsClient{
-			OpenIdConnectApplicationSettingsClient: okta.OpenIdConnectApplicationSettingsClient{
-				ApplicationType:        appType,
-				ClientUri:              d.Get("client_uri").(string),
-				ConsentMethod:          d.Get("consent_method").(string),
-				GrantTypes:             oktaGrantTypes,
-				InitiateLoginUri:       d.Get("login_uri").(string),
-				LogoUri:                d.Get("logo_uri").(string),
-				PolicyUri:              d.Get("policy_uri").(string),
-				RedirectUris:           convertInterfaceToStringSetNullable(d.Get("redirect_uris")),
-				PostLogoutRedirectUris: convertInterfaceToStringSetNullable(d.Get("post_logout_redirect_uris")),
-				ResponseTypes:          oktaRespTypes,
-				TosUri:                 d.Get("tos_uri").(string),
-				IssuerMode:             d.Get("issuer_mode").(string),
+	app.Settings = &okta.OpenIdConnectApplicationSettings{
+		ImplicitAssignment: boolPtr(d.Get("implicit_assignment").(bool)),
+		OauthClient: &okta.OpenIdConnectApplicationSettingsClient{
+			ApplicationType:        appType,
+			ClientUri:              d.Get("client_uri").(string),
+			ConsentMethod:          d.Get("consent_method").(string),
+			GrantTypes:             oktaGrantTypes,
+			InitiateLoginUri:       d.Get("login_uri").(string),
+			LogoUri:                d.Get("logo_uri").(string),
+			PolicyUri:              d.Get("policy_uri").(string),
+			RedirectUris:           convertInterfaceToStringSetNullable(d.Get("redirect_uris")),
+			PostLogoutRedirectUris: convertInterfaceToStringSetNullable(d.Get("post_logout_redirect_uris")),
+			ResponseTypes:          oktaRespTypes,
+			TosUri:                 d.Get("tos_uri").(string),
+			IssuerMode:             d.Get("issuer_mode").(string),
+			IdpInitiatedLogin: &okta.OpenIdConnectApplicationIdpInitiatedLogin{
+				DefaultScope: convertInterfaceToStringSet(d.Get("login_scopes")),
+				Mode:         d.Get("login_mode").(string),
 			},
 		},
 	}
 	jwks := d.Get("jwks").([]interface{})
 	if len(jwks) > 0 {
-		keys := make([]*sdk.JWK, len(jwks))
+		keys := make([]*okta.JsonWebKey, len(jwks))
 		for i := range jwks {
-			keys[i] = &sdk.JWK{
-				ID:       d.Get(fmt.Sprintf("jwks.%d.kid", i)).(string),
-				Type:     d.Get(fmt.Sprintf("jwks.%d.kty", i)).(string),
-				Exponent: d.Get(fmt.Sprintf("jwks.%d.e", i)).(string),
-				Modulus:  d.Get(fmt.Sprintf("jwks.%d.n", i)).(string),
+			keys[i] = &okta.JsonWebKey{
+				Kid: d.Get(fmt.Sprintf("jwks.%d.kid", i)).(string),
+				Kty: d.Get(fmt.Sprintf("jwks.%d.kty", i)).(string),
+				E:   d.Get(fmt.Sprintf("jwks.%d.e", i)).(string),
+				N:   d.Get(fmt.Sprintf("jwks.%d.n", i)).(string),
 			}
 		}
-		app.Settings.OauthClient.JWKS = &sdk.JWKS{Keys: keys}
+		app.Settings.OauthClient.Jwks = &okta.OpenIdConnectApplicationSettingsClientKeys{Keys: keys}
 	}
 
 	app.Visibility = buildVisibility(d)
@@ -535,4 +584,40 @@ func validateGrantTypes(d *schema.ResourceData) error {
 
 	// There is some conditional validation around grant types depending on application type.
 	return conditionalValidator("grant_types", appType, appMap.RequiredGrantTypes, appMap.ValidGrantTypes, grantTypeList)
+}
+
+func validateAppOAuth(d *schema.ResourceData) error {
+	if _, ok := d.GetOk("jwks"); !ok && d.Get("token_endpoint_auth_method").(string) == "private_key_jwt" {
+		return errors.New("'jwks' is required when 'token_endpoint_auth_method' is 'private_key_jwt'")
+	}
+	if d.Get("login_mode").(string) != "DISABLED" {
+		if d.Get("login_uri").(string) == "" {
+			return errors.New("you have to set up 'login_uri' to configure any 'login_mode' besides 'DISABLED'")
+		}
+		if d.Get("login_mode").(string) == "OKTA" && len(convertInterfaceToStringSet(d.Get("login_scopes"))) < 1 {
+			return errors.New("you have to set up non-empty 'login_scopes' when 'login_mode' is 'OKTA'")
+		}
+	}
+	grantTypes := convertInterfaceToStringSet(d.Get("grant_types"))
+	hasImplicit := false
+	for _, v := range grantTypes {
+		if v == "implicit" {
+			hasImplicit = true
+			break
+		}
+	}
+	if !hasImplicit {
+		return nil
+	}
+	hasTokenOrTokenID := false
+	for _, v := range convertInterfaceToStringSetNullable(d.Get("response_types")) {
+		if v == "token" || v == "id_token" {
+			hasTokenOrTokenID = true
+			break
+		}
+	}
+	if !hasTokenOrTokenID {
+		return errors.New("'response_types' must contain at least one of ['token', 'id_token'] when 'grant_types' contains 'implicit'")
+	}
+	return nil
 }

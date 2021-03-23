@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/okta/okta-sdk-golang/v2/okta"
-	"github.com/oktadeveloper/terraform-provider-okta/sdk"
+	"github.com/okta/terraform-provider-okta/sdk"
 )
 
 func resourcePolicyMfaRule() *schema.Resource {
@@ -22,7 +22,7 @@ func resourcePolicyMfaRule() *schema.Resource {
 				ValidateDiagFunc: stringInSlice([]string{"CHALLENGE", "LOGIN", "NEVER"}),
 				Default:          "CHALLENGE",
 				Optional:         true,
-				Description:      "Should the user be enrolled the first time they LOGIN, the next time they are CHALLENGEd, or NEVER?",
+				Description:      "Should the user be enrolled the first time they LOGIN, the next time they are CHALLENGED, or NEVER?",
 			},
 		}),
 	}

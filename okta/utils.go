@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/okta/okta-sdk-golang/v2/okta"
-	"github.com/oktadeveloper/terraform-provider-okta/sdk"
+	"github.com/okta/terraform-provider-okta/sdk"
 )
 
 var defaultPaginationLimit int64 = 200
@@ -104,7 +104,15 @@ func contains(s []string, e string) bool {
 			return true
 		}
 	}
+	return false
+}
 
+func containsInt(codes []int, code int) bool {
+	for _, a := range codes {
+		if a == code {
+			return true
+		}
+	}
 	return false
 }
 
@@ -317,11 +325,11 @@ func remove(arr []string, el string) []string {
 }
 
 // The best practices states that aggregate types should have error handling (think non-primitive). This will not attempt to set nil values.
-func setNonPrimitives(data *schema.ResourceData, valueMap map[string]interface{}) error {
+func setNonPrimitives(d *schema.ResourceData, valueMap map[string]interface{}) error {
 	for k, v := range valueMap {
 		if v != nil {
-			if err := data.Set(k, v); err != nil {
-				return fmt.Errorf("error setting %s for resource %s: %s", k, data.Id(), err)
+			if err := d.Set(k, v); err != nil {
+				return fmt.Errorf("error setting %s for resource %s: %s", k, d.Id(), err)
 			}
 		}
 	}

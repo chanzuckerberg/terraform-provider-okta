@@ -47,9 +47,9 @@ The following arguments are supported:
 
 - `label` - (Required) The Application's display name.
 
-- `status` - (Optional) The status of the application, by default it is `"ACTIVE"`.
+- `status` - (Optional) The status of the application, by default, it is `"ACTIVE"`.
 
-- `type` - (Required) The type of OAuth application.
+- `type` - (Required) The type of OAuth application. Valid values: `"web"`, `"native"`, `"browser"`, `"service"`.
 
 - `users` - (Optional) The users assigned to the application. It is recommended not to use this and instead use `okta_app_user`.
 
@@ -57,7 +57,7 @@ The following arguments are supported:
 
 - `client_id` - (Optional) OAuth client ID. If set during creation, app is created with this id.
 
-- `omit_secret` - (Optional) This tells the provider not to persist the application's secret to state. If this is ever changes from true => false your app will be recreated.
+- `omit_secret` - (Optional) This tells the provider not to persist the application's secret to state. Your app will be recreated if this ever changes from true => false.
 
 - `client_basic_secret` - (Optional) OAuth client secret key, this can be set when token_endpoint_auth_method is client_secret_basic.
 
@@ -69,7 +69,7 @@ The following arguments are supported:
 
 - `logo_uri` - (Optional) URI that references a logo for the client.
 
-- `login_uri` - (Optional) URI that initiates login.
+- `login_uri` - (Optional) URI that initiates login. Required when `login_mode` is NOT `DISABLED`.
 
 - `redirect_uris` - (Optional) List of URIs for use in the redirect-based flow. This is required for all application types except service.
 
@@ -77,13 +77,14 @@ The following arguments are supported:
 
 - `response_types` - (Optional) List of OAuth 2.0 response type strings.
 
-- `grant_types` - (Optional) List of OAuth 2.0 grant types. Conditional validation params found [here](https://developer.okta.com/docs/api/resources/apps#credentials-settings-details). Defaults to minimum requirements per app type.
+- `grant_types` - (Optional) List of OAuth 2.0 grant types. Conditional validation params found [here](https://developer.okta.com/docs/api/resources/apps#credentials-settings-details). 
+  Defaults to minimum requirements per app type. Valid values: `"authorization_code"`, `"implicit"`, `"password"`, `"refresh_token"`, `"client_credentials"`. 
 
 - `tos_uri` - (Optional) URI to web page providing client tos (terms of service).
 
 - `policy_uri` - (Optional) URI to web page providing client policy document.
 
-- `consent_method` - (Optional) Indicates whether user consent is required or implicit. Valid values: REQUIRED, TRUSTED. Default value is TRUSTED.
+- `consent_method` - (Optional) Indicates whether user consent is required or implicit. Valid values: `"REQUIRED"`, `"TRUSTED"`. Default value is `"TRUSTED"`.
 
 - `issuer_mode` - (Optional) Indicates whether the Okta Authorization Server uses the original Okta org domain URL or a custom domain URL as the issuer of ID token for this client.
 
@@ -95,13 +96,19 @@ The following arguments are supported:
 
 - `profile` - (Optional) Custom JSON that represents an OAuth application's profile.
 
+- `implicit_assignment` - (Optional) *Early Access Property*. Enables [Federation Broker Mode]( https://help.okta.com/en/prod/Content/Topics/Apps/apps-fbm-enable.htm). When this mode is enabled, `users` and `groups` arguments are ignored.
+
+- `login_mode` - (Optional) The type of Idp-Initiated login that the client supports, if any. Valid values: `"DISABLED"`, `"SPEC"`, `"OKTA"`. Default is `"DISABLED"`.
+
+- `login_scopes` - (Optional) List of scopes to use for the request. Valid values: `"openid"`, `"profile"`, `"email"`, `"address"`, `"phone"`. Required when `login_mode` is NOT `DISABLED`.
+
 ## Attributes Reference
 
 - `id` - ID of the application.
 
 - `name` - Name assigned to the application by Okta.
 
-- `sign_on_mode` - Sign on mode of application.
+- `sign_on_mode` - Sign-on mode of application.
 
 - `client_id` - The client ID of the application.
 

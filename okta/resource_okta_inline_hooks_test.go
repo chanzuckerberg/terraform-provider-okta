@@ -12,7 +12,7 @@ import (
 
 func sweepInlineHooks(client *testClient) error {
 	var errorList []error
-	hooks, _, err := client.apiSupplement.ListInlineHooks(context.Background())
+	hooks, _, err := client.oktaClient.InlineHook.ListInlineHooks(context.Background(), nil)
 	if err != nil {
 		return err
 	}
@@ -21,12 +21,12 @@ func sweepInlineHooks(client *testClient) error {
 			continue
 		}
 		if hook.Status == statusActive {
-			_, _, err = client.oktaClient.InlineHook.DeactivateInlineHook(context.Background(), hook.ID)
+			_, _, err = client.oktaClient.InlineHook.DeactivateInlineHook(context.Background(), hook.Id)
 			if err != nil {
 				errorList = append(errorList, err)
 			}
 		}
-		_, err = client.oktaClient.InlineHook.DeleteInlineHook(context.Background(), hook.ID)
+		_, err = client.oktaClient.InlineHook.DeleteInlineHook(context.Background(), hook.Id)
 		if err != nil {
 			errorList = append(errorList, err)
 		}
@@ -126,9 +126,9 @@ func TestAccOktaInlineHook_crud(t *testing.T) {
 }
 
 func inlineHookExists(id string) (bool, error) {
-	_, res, err := getSupplementFromMetadata(testAccProvider.Meta()).GetInlineHook(context.Background(), id)
-	if err != nil && res.StatusCode != http.StatusNotFound {
+	_, resp, err := getOktaClientFromMetadata(testAccProvider.Meta()).InlineHook.GetInlineHook(context.Background(), id)
+	if err := suppressErrorOn404(resp, err); err != nil {
 		return false, err
 	}
-	return res.StatusCode != http.StatusNotFound, nil
+	return resp.StatusCode != http.StatusNotFound, nil
 }

@@ -23,23 +23,18 @@ func resourceAppGroupAssignment() *schema.Resource {
 				if len(parts) != 2 {
 					return nil, errors.New("invalid resource import specifier. Use: terraform import <app_id>/<group_id>")
 				}
-
 				_ = d.Set("app_id", parts[0])
 				_ = d.Set("group_id", parts[1])
-
+				_ = d.Set("retain_assignment", false)
 				assignment, _, err := getOktaClientFromMetadata(m).Application.
 					GetApplicationGroupAssignment(ctx, parts[0], parts[1], nil)
-
 				if err != nil {
 					return nil, err
 				}
-
 				d.SetId(assignment.Id)
-
 				return []*schema.ResourceData{d}, nil
 			},
 		},
-
 		Schema: map[string]*schema.Schema{
 			"app_id": {
 				Type:        schema.TypeString,
@@ -56,6 +51,10 @@ func resourceAppGroupAssignment() *schema.Resource {
 			"priority": {
 				Type:     schema.TypeInt,
 				Optional: true,
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					p, n := d.GetChange("priority")
+					return p == n && new == "0"
+				},
 			},
 			"profile": {
 				Type:             schema.TypeString,
@@ -65,6 +64,12 @@ func resourceAppGroupAssignment() *schema.Resource {
 				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
 					return new == ""
 				},
+			},
+			"retain_assignment": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+				Description: "Retain the group assignment on destroy. If set to true, the resource will be removed from state but not from the Okta app.",
 			},
 		},
 	}
@@ -122,6 +127,12 @@ func resourceAppGroupAssignmentRead(ctx context.Context, d *schema.ResourceData,
 }
 
 func resourceAppGroupAssignmentDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+	retain := d.Get("retain_assignment").(bool)
+	if retain {
+		// The assignment should be retained, bail before DeleteApplicationGroupAssignment is called
+		return nil
+	}
+
 	_, err := getOktaClientFromMetadata(m).Application.DeleteApplicationGroupAssignment(
 		ctx,
 		d.Get("app_id").(string),

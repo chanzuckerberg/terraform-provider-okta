@@ -1,4 +1,4 @@
-[![Build Status](https://img.shields.io/travis/oktadeveloper/terraform-provider-okta.svg?logo=travis)](https://travis-ci.com/github/oktadeveloper/terraform-provider-okta)
+[![Build Status](https://img.shields.io/travis/okta/terraform-provider-okta.svg?logo=travis)](https://travis-ci.com/github/okta/terraform-provider-okta)
 <br/><br/>
 
 <a href="https://terraform.io">
@@ -14,6 +14,12 @@
 The Terraform Okta provider is a plugin for Terraform that allows for the full lifecycle management of Okta resources.
 This provider is maintained internally by the Okta development team.
 
+## Examples
+
+All the resources and data sources has [one or more examples](./examples) to give you an idea of how to use this provider to build your 
+own Okta infrastructure. Provider's official documentation is located in the 
+[official terraform registry](https://registry.terraform.io/providers/okta/okta/latest/docs), or [here](./website/docs) in form of raw markdown files.
+
 # Development Environment Setup
 
 ## Requirements
@@ -25,13 +31,13 @@ This provider is maintained internally by the Okta development team.
 
 If you wish to work on the provider, you'll first need [Go](http://www.golang.org) installed on your machine (please check the [requirements](#requirements) before proceeding).
 
-_Note:_ This project uses [Go Modules](https://blog.golang.org/using-go-modules) making it safe to work with it outside of your existing [GOPATH](http://golang.org/doc/code.html#GOPATH). The instructions that follow assume a directory in your home directory outside of the standard GOPATH (i.e `$HOME/development/terraform-providers/`).
+_Note:_ This project uses [Go Modules](https://blog.golang.org/using-go-modules) making it safe to work with it outside your existing [GOPATH](http://golang.org/doc/code.html#GOPATH). The instructions that follow assume a directory in your home directory outside the standard GOPATH (i.e `$HOME/development/terraform-providers/`).
 
 Clone repository to: `$HOME/development/terraform-providers/`
 
 ```sh
 $ mkdir -p $HOME/development/terraform-providers/; cd $HOME/development/terraform-providers/
-$ git clone git@github.com:oktadeveloper/terraform-provider-okta.git
+$ git clone git@github.com:okta/terraform-provider-okta.git
 ...
 ```
 
@@ -60,7 +66,7 @@ $ make test
 
 In order to run the full suite of Acceptance tests, run `make testacc`.
 
-_Note:_ Acceptance tests create real resources, and often cost money to run. Please read [Running an Acceptance Test](https://github.com/oktadeveloper/terraform-provider-okta/blob/master/.github/CONTRIBUTING.md#running-an-acceptance-test) in the contribution guidelines for more information on usage.
+_Note:_ Acceptance tests create real resources, and often cost money to run. Please read [Running an Acceptance Test](https://github.com/okta/terraform-provider-okta/blob/master/.github/CONTRIBUTING.md#running-an-acceptance-test) in the contribution guidelines for more information on usage.
 
 ```sh
 $ make testacc
@@ -80,5 +86,5 @@ Terraform is the work of thousands of contributors. We appreciate your help!
 
 To contribute, please read the contribution guidelines: [Contributing to Terraform - Okta Provider](.github/CONTRIBUTING.md)
 
-Issues on GitHub are intended to be related to bugs or feature requests with provider codebase. 
+Issues on GitHub are intended to be related to the bugs or feature requests with provider codebase. 
 See [Plugin SDK Community](https://www.terraform.io/docs/extend/community/index.html) for a list of community resources to ask questions about Terraform.

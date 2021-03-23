@@ -1,5 +1,89 @@
 # Changelog
 
+## 3.10.1 (February 26, 2021)
+
+ENHANCEMENTS:
+
+* Add `retain_assignment` field to `okta_app_user` and `okta_app_group_assignment` resource [#330](https://github.com/oktadeveloper/terraform-provider-okta/pull/330). Thanks, [@Omicron7](https://github.com/Omicron7)!
+* Add `target_app_list` field to the `okta_group_role` resource [#349](https://github.com/oktadeveloper/terraform-provider-okta/pull/349). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add support for `OVERRIDE` value in `master` field and new `master_override_priority` field to the `okta_user_schema` resource [#351](https://github.com/oktadeveloper/terraform-provider-okta/pull/351). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+
+BUGS:
+
+* Added wait to `okta_group_membership` resource [#335](https://github.com/oktadeveloper/terraform-provider-okta/pull/335). Thanks, [@ymylei](https://github.com/ymylei)!
+* Fix set of `subject_match_attribute` value for `okta_idp_oidc` resource [#344](https://github.com/oktadeveloper/terraform-provider-okta/pull/344). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Fix resource validation [#348](https://github.com/oktadeveloper/terraform-provider-okta/pull/348). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Fix setup of empty `login_scopes` for `okta_app_oauth` resource [#352](https://github.com/oktadeveloper/terraform-provider-okta/pull/352). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Fix `okta_group_role` when removing all the items from `target_group_list` [#341](https://github.com/oktadeveloper/terraform-provider-okta/pull/341). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+
+## 3.10.0 (February 19, 2021)
+
+ENHANCEMENTS:
+
+* Add new `okta_auth_server_scopes` datasource [#336](https://github.com/oktadeveloper/terraform-provider-okta/pull/336). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add new `okta_idp_social` datasource [#337](https://github.com/oktadeveloper/terraform-provider-okta/pull/337). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Several minor bug fixes and enhancements.
+
+BUGS:
+
+* Fix preconfigured `okta_app_swa` creation in case it has more that one sign-on modes [#328](https://github.com/oktadeveloper/terraform-provider-okta/pull/328). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add force recreate in case `okta_app_user_schema` changes the `scope` value since it's a read-only attribute [#331](https://github.com/oktadeveloper/terraform-provider-okta/pull/331). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Fix false positive output when runnning `terraform plan`for the `okta_profile_mapping` resource in case `delete_when_absent` is set to `false` [#332](https://github.com/oktadeveloper/terraform-provider-okta/pull/332). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Fix `okta_app_oauth` validation [#333](https://github.com/oktadeveloper/terraform-provider-okta/pull/333) and [#340](https://github.com/oktadeveloper/terraform-provider-okta/pull/340). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+
+## 3.9.0 (February 12, 2021)
+
+ENHANCEMENTS:
+
+* Add new `okta_admin_role_targets` resource [#325](https://github.com/oktadeveloper/terraform-provider-okta/pull/325). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add `target_group_list` field to the `okta_group_role` resource [#256](https://github.com/oktadeveloper/terraform-provider-okta/pull/256). Thanks, [@ymylei](https://github.com/ymylei)!
+
+BUGS:
+
+* Fixed `subject_match_attribute` setup in the `okta_idp_saml` resource [#320](https://github.com/oktadeveloper/terraform-provider-okta/pull/320). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Fixed `users` setup when importing `okta_group` resource [#323](https://github.com/oktadeveloper/terraform-provider-okta/pull/323). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+
+## 3.8.0 (February 1, 2021)
+
+ENHANCEMENTS:
+
+* Add support for OAuth Authorization for Okta API [#290](https://github.com/oktadeveloper/terraform-provider-okta/pull/290). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Make `key_id` optional for `okta_app_saml_metadata` [#128](https://github.com/oktadeveloper/terraform-provider-okta/pull/128). Thanks, [@cludden](https://github.com/cludden)!
+* Add new `okta_group_membership` resource [#252](https://github.com/oktadeveloper/terraform-provider-okta/pull/252). Thanks, [@ymylei](https://github.com/ymylei)!
+* Add new `okta_group_role` resource [#255](https://github.com/oktadeveloper/terraform-provider-okta/pull/255). Thanks, [@ymylei](https://github.com/ymylei)!
+* Add new `okta_idp_oidc` data source [#286](https://github.com/oktadeveloper/terraform-provider-okta/pull/286). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add new `okta_app_oauth` data source [#293](https://github.com/oktadeveloper/terraform-provider-okta/pull/293). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add new `okta_auth_server_policy` data source [#298](https://github.com/oktadeveloper/terraform-provider-okta/pull/298). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add `usage` field to the `okta_network_zone` resource [#271](https://github.com/oktadeveloper/terraform-provider-okta/pull/271). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add `okta_email` factor to the `okta_policy_mfa` resource [#269](https://github.com/oktadeveloper/terraform-provider-okta/pull/269). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add `id` field to the `okta_users` data source [#288](https://github.com/oktadeveloper/terraform-provider-okta/pull/288). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add `union` field to the `app_user_schema` resource [#291](https://github.com/oktadeveloper/terraform-provider-okta/pull/291). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add `implicit_assignment` field to the `okta_app_oauth` resource [120](https://github.com/oktadeveloper/terraform-provider-okta/pull/120). Thanks, [Justin Lewis](https://github.com/jlew)!
+* Add `issuer` and `issuer_mode` fields to the `okta_auth_server` data resource [#301](https://github.com/oktadeveloper/terraform-provider-okta/pull/301). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add `login_mode` and `login_scopes` to the `okta_app_oauth` resource [#311](https://github.com/oktadeveloper/terraform-provider-okta/pull/311). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add `single_logout_issuer`, `single_logout_url` and `single_logout_certificate` fields to the `okta_app_saml` resource [#307](https://github.com/oktadeveloper/terraform-provider-okta/pull/307). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add `metadata_url` field to the `okta_app_saml` resource [#316](https://github.com/oktadeveloper/terraform-provider-okta/pull/316). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Remove `acs_binding` and `acs_type` from `okta_idp_oidc` as (they are not supported)[(https://developer.okta.com/docs/reference/api/idps/#oauth-2-0-and-openid-connect-endpoints-object)] by this resource [#286](https://github.com/oktadeveloper/terraform-provider-okta/pull/286). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Deprecate `acs_binding` argument for `okta_idp_saml` resource, as it [can only be set to `HTTP-POST`](https://developer.okta.com/docs/reference/api/idps/#assertion-consumer-service-acs-endpoint-object) [#286](https://github.com/oktadeveloper/terraform-provider-okta/pull/286). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add a retry on `404` error in case Okta lagging during resource creation. Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add validation for all URL-type fields.
+* Various code improvements and documentation updates. Thanks, [@me](https://github.com/bogdanprodan-okta)!
+
+BUGS:
+
+* Ignore special groups (`BUILT_IN` and `APP_GROUP`) in the `group_memberships` field [#118](https://github.com/oktadeveloper/terraform-provider-okta/pull/118). Thanks, [@rasta-rocket](https://github.com/rasta-rocket)!
+* Fix `inline_hooks` delete operation if the hooks were removed outside the provider [#288](https://github.com/oktadeveloper/terraform-provider-okta/pull/288). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Fix `group_memberships` populating in the `okta_user` data source [#284](https://github.com/oktadeveloper/terraform-provider-okta/pull/284). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Fix terraform import for the `app_user_schema` resource [#291](https://github.com/oktadeveloper/terraform-provider-okta/pull/291). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Fix delete operation for `auth_server_claim` resource in case claim has type `SYSTEM` [#283](https://github.com/oktadeveloper/terraform-provider-okta/pull/283). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Remove redundant `description` field from the `okta_app_saml` resource [#278](https://github.com/oktadeveloper/terraform-provider-okta/pull/278). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Add suppress function for the `features` field in the `okta_app_saml` resource since it's not currently possible to create/update provisioning features via the API [296](https://github.com/oktadeveloper/terraform-provider-okta/pull/296). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Remove `OAUTH_AUTHORIZATION_POLICY` from `okta_default_policy` and `okta_policy` since it's not supported by Okta API [#298](https://github.com/oktadeveloper/terraform-provider-okta/pull/298). Use `okta_auth_server_policy` instead. Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Fix status change in the `okta_auth_server_policy` resource [#299](https://github.com/oktadeveloper/terraform-provider-okta/pull/299). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Fix `user_name_template_*` fields setup for the apps resource [#309](https://github.com/oktadeveloper/terraform-provider-okta/pull/309/files). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Fix `refresh_token_window_minutes` minimum value in the `okta_auth_server_policy_rule` resource [#314](https://github.com/oktadeveloper/terraform-provider-okta/pull/314). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+* Fix `attribute_statements` field validation in the `okta_app_saml` resource [#313](https://github.com/oktadeveloper/terraform-provider-okta/pull/313). Thanks, [@me](https://github.com/bogdanprodan-okta)!
+
 ## 3.7.4 (December 28, 2020)
 
 ENHANCEMENTS:

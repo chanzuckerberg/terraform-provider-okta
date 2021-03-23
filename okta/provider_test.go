@@ -4,13 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-var testAccProvidersFactories map[string]func() (*schema.Provider, error)
-var testAccProvider *schema.Provider
+var (
+	testAccProvidersFactories map[string]func() (*schema.Provider, error)
+	testAccProvider           *schema.Provider
+)
 
 func init() {
 	testAccProvider = Provider()
@@ -28,41 +31,45 @@ func TestProvider(t *testing.T) {
 }
 
 func TestProvider_impl(t *testing.T) {
-	var _ *schema.Provider = Provider()
+	_ = Provider()
+}
+
+func oktaConfig() (*Config, error) {
+	config := &Config{
+		orgName:        os.Getenv("OKTA_ORG_NAME"),
+		apiToken:       os.Getenv("OKTA_API_TOKEN"),
+		clientID:       os.Getenv("OKTA_API_CLIENT_ID"),
+		privateKey:     os.Getenv("OKTA_API_PRIVATE_KEY"),
+		scopes:         strings.Split(os.Getenv("OKTA_API_SCOPES"), ","),
+		domain:         os.Getenv("OKTA_BASE_URL"),
+		parallelism:    1,
+		retryCount:     10,
+		maxWait:        30,
+		requestTimeout: 60,
+	}
+	if err := config.loadAndValidate(); err != nil {
+		return config, fmt.Errorf("error initializing Okta client: %v", err)
+	}
+	return config, nil
+}
+
+func testAccPreCheck(t *testing.T) {
+	err := accPreCheck()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 }
 
 func accPreCheck() error {
 	if v := os.Getenv("OKTA_ORG_NAME"); v == "" {
 		return errors.New("OKTA_ORG_NAME must be set for acceptance tests")
 	}
-	if v := os.Getenv("OKTA_API_TOKEN"); v == "" {
-		return errors.New("OKTA_API_TOKEN must be set for acceptance tests")
+	token := os.Getenv("OKTA_API_TOKEN")
+	clientID := os.Getenv("OKTA_API_CLIENT_ID")
+	privateKey := os.Getenv("OKTA_API_PRIVATE_KEY")
+	scopes := os.Getenv("OKTA_API_SCOPES")
+	if token == "" && (clientID == "" || scopes == "" || privateKey == "") {
+		return errors.New("either OKTA_API_TOKEN or OKTA_API_CLIENT_ID, OKTA_API_SCOPES and OKTA_API_PRIVATE_KEY must be set for acceptance tests")
 	}
-
 	return nil
-}
-
-func oktaConfig() (*Config, error) {
-	config := &Config{
-		orgName:     os.Getenv("OKTA_ORG_NAME"),
-		apiToken:    os.Getenv("OKTA_API_TOKEN"),
-		domain:      os.Getenv("OKTA_BASE_URL"),
-		parallelism: 1,
-		retryCount:  10,
-		maxWait:     30,
-	}
-
-	if err := config.loadAndValidate(); err != nil {
-		return config, fmt.Errorf("error initializing Okta client: %v", err)
-	}
-
-	return config, nil
-}
-
-func testAccPreCheck(t *testing.T) {
-	err := accPreCheck()
-
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
 }

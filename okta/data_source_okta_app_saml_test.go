@@ -27,8 +27,8 @@ func TestAccOktaDataSourceAppSaml_read(t *testing.T) {
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttrSet("data.okta_app_saml.test", "key_id"),
-					resource.TestCheckResourceAttr("data.okta_app_saml.test", "label", fmt.Sprintf("testAcc_%d", ri)),
-					resource.TestCheckResourceAttr("data.okta_app_saml.test_label", "label", fmt.Sprintf("testAcc_%d", ri)),
+					resource.TestCheckResourceAttr("data.okta_app_saml.test", "label", buildResourceName(ri)),
+					resource.TestCheckResourceAttr("data.okta_app_saml.test_label", "label", buildResourceName(ri)),
 					resource.TestCheckResourceAttr("data.okta_app_saml.test", "status", statusActive),
 					resource.TestCheckResourceAttr("data.okta_app_saml.test_label", "status", statusActive),
 				),
@@ -52,5 +52,12 @@ resource "okta_app_saml" "test" {
   digest_algorithm         = "SHA256"
   honor_force_authn        = false
   authn_context_class_ref  = "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport"
+
+  attribute_statements {
+    type         = "GROUP"
+    name         = "Attr Two"
+    filter_type  = "STARTS_WITH"
+    filter_value = "test"
+  }
 }`, d)
 }

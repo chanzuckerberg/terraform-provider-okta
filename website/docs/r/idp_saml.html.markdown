@@ -17,7 +17,6 @@ This resource allows you to create and configure a SAML Identity Provider.
 ```hcl
 resource "okta_idp_saml" "example" {
   name                     = "testAcc_replace_with_uuid"
-  acs_binding              = "HTTP-POST"
   acs_type                 = "INSTANCE"
   sso_url                  = "https://idp.example.com"
   sso_destination          = "https://idp.example.com"
@@ -38,8 +37,6 @@ The following arguments are supported:
 
 - `kid` - (Required) The ID of the signing key.
 
-- `acs_binding` - (Required) The method of making an ACS request. It can be set to `"HTTP-POST"` or `"HTTP-REDIRECT"`.
-
 - `sso_url` - (Required) URL of binding-specific endpoint to send an AuthnRequest message to IdP.
 
 - `issuer` - (Required) URI that identifies the issuer.
@@ -52,7 +49,7 @@ The following arguments are supported:
 
 - `name_format` - (Optional) The name identifier format to use. By default `"urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"`.
 
-- `subject_format` - (Optional) The name formate. By default `"urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"`.
+- `subject_format` - (Optional) The name format. By default `"urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"`.
 
 - `subject_filter` - (Optional) Optional regular expression pattern used to filter untrusted IdP usernames.
 
@@ -82,7 +79,7 @@ The following arguments are supported:
 
 - `username_template` - (Optional) Okta EL Expression to generate or transform a unique username for the IdP user.
 
-- `subject_match_type` - (Optional) Determines the Okta user profile attribute match conditions for account linking and authentication of the transformed IdP username. By default it is set to `"USERNAME"`. It can be set to `"USERNAME"`, `"EMAIL"`, `"USERNAME_OR_EMAIL"` or `"CUSTOM_ATTRIBUTE"`.
+- `subject_match_type` - (Optional) Determines the Okta user profile attribute match conditions for account linking and authentication of the transformed IdP username. By default, it is set to `"USERNAME"`. It can be set to `"USERNAME"`, `"EMAIL"`, `"USERNAME_OR_EMAIL"` or `"CUSTOM_ATTRIBUTE"`.
 
 - `subject_match_attribute` - (Optional) Okta user profile attribute for matching transformed IdP username. Only for matchType `"CUSTOM_ATTRIBUTE"`.
 
@@ -90,7 +87,7 @@ The following arguments are supported:
 
 - `request_signature_algorithm` - (Optional) The XML digital signature algorithm used when signing an AuthnRequest message.
 
-- `request_signature_scope` - (Optional) Specifies whether or not to digitally sign an AuthnRequest messages to the IdP. It can be `"REQUEST"` or `"NONE"`.
+- `request_signature_scope` - (Optional) Specifies whether to digitally sign an AuthnRequest messages to the IdP. It can be `"REQUEST"` or `"NONE"`.
 
 - `response_signature_algorithm` - (Optional) The minimum XML digital signature algorithm allowed when verifying a SAMLResponse message or Assertion element.
 

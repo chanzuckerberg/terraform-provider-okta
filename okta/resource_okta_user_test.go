@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/okta/okta-sdk-golang/v2/okta/query"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/okta/okta-sdk-golang/v2/okta/query"
 )
 
 func sweepUsers(client *testClient) error {
@@ -346,17 +346,15 @@ func TestAccOktaUser_validRole(t *testing.T) {
 
 func testAccCheckUserDestroy(s *terraform.State) error {
 	client := getOktaClientFromMetadata(testAccProvider.Meta())
-
 	for _, r := range s.RootModule().Resources {
 		if _, resp, err := client.User.GetUser(context.Background(), r.Primary.ID); err != nil {
-			if strings.Contains(resp.Response.Status, "404") {
+			if resp != nil && resp.Response.StatusCode == http.StatusNotFound {
 				continue
 			}
 			return fmt.Errorf("[ERROR] Error Getting User in Okta: %v", err)
 		}
 		return fmt.Errorf("user still exists")
 	}
-
 	return nil
 }
 

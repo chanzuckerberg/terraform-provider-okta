@@ -2,9 +2,13 @@ package okta
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/okta/okta-sdk-golang/v2/okta"
+	"github.com/okta/okta-sdk-golang/v2/okta/query"
 )
 
 func dataSourceAppSaml() *schema.Resource {
@@ -31,10 +35,6 @@ func dataSourceAppSaml() *schema.Resource {
 				Optional:    true,
 				Default:     true,
 				Description: "Search only ACTIVE applications.",
-			},
-			"description": {
-				Type:     schema.TypeString,
-				Computed: true,
 			},
 			"name": {
 				Type:     schema.TypeString,
@@ -224,8 +224,59 @@ func dataSourceAppSaml() *schema.Resource {
 				Type:     schema.TypeList,
 				Optional: true,
 				Elem: &schema.Resource{
-					Schema: attributeStatements,
+					Schema: map[string]*schema.Schema{
+						"filter_type": {
+							Type:        schema.TypeString,
+							Computed:    true,
+							Description: "Type of group attribute filter",
+						},
+						"filter_value": {
+							Type:        schema.TypeString,
+							Computed:    true,
+							Description: "Filter value to use",
+						},
+						"name": {
+							Type:        schema.TypeString,
+							Computed:    true,
+							Description: "The reference name of the attribute statement",
+						},
+						"namespace": {
+							Type:        schema.TypeString,
+							Computed:    true,
+							Description: "The name format of the attribute",
+						},
+						"type": {
+							Type:        schema.TypeString,
+							Computed:    true,
+							Description: "The type of attribute statements object",
+						},
+						"values": {
+							Type:     schema.TypeList,
+							Computed: true,
+							Elem:     &schema.Schema{Type: schema.TypeString},
+						},
+					},
 				},
+			},
+			"single_logout_issuer": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The issuer of the Service Provider that generates the Single Logout request",
+			},
+			"single_logout_url": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The location where the logout response is sent",
+			},
+			"single_logout_certificate": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "x509 encoded certificate that the Service Provider uses to sign Single Logout requests",
+			},
+			"links": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "Discoverable resources related to the app",
 			},
 		},
 	}
@@ -234,32 +285,58 @@ func dataSourceAppSaml() *schema.Resource {
 func dataSourceAppSamlRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	filters, err := getAppFilters(d)
 	if err != nil {
-		return diag.Errorf("failed to list SAML apps: error getting filters: %v", err)
+		return diag.Errorf("invalid SAML app filters: %v", err)
 	}
-	appList, err := listSamlApps(ctx, m.(*Config), filters)
-	if err != nil {
-		return diag.Errorf("failed to list SAML apps: error getting SAML apps: %v", err)
+	var app *okta.SamlApplication
+	if filters.ID != "" {
+		respApp, _, err := getOktaClientFromMetadata(m).Application.GetApplication(ctx, filters.ID, okta.NewSamlApplication(), nil)
+		if err != nil {
+			return diag.Errorf("failed get app by ID: %v", err)
+		}
+		app = respApp.(*okta.SamlApplication)
+	} else {
+		re := getOktaClientFromMetadata(m).GetRequestExecutor()
+		qp := &query.Params{Limit: 1, Filter: filters.Status, Q: filters.getQ()}
+		req, err := re.NewRequest("GET", fmt.Sprintf("/api/v1/apps%s", qp.String()), nil)
+		if err != nil {
+			return diag.Errorf("failed to list SAML apps: %v", err)
+		}
+		var appList []*okta.SamlApplication
+		_, err = re.Do(ctx, req, &appList)
+		if err != nil {
+			return diag.Errorf("failed to list SAML apps: %v", err)
+		}
+		if len(appList) < 1 {
+			return diag.Errorf("no SAML application found with provided filter: %s", filters)
+		}
+		if filters.Label != "" && appList[0].Label != filters.Label {
+			return diag.Errorf("no SAML application found with the provided label: %s", filters.Label)
+		}
+		logger(m).Info("found multiple SAML applications with the criteria supplied, using the first one, sorted by creation date")
+		app = appList[0]
 	}
-	if len(appList) < 1 {
-		return diag.Errorf("no SAML applications found with provided filter: %+v", filters)
-	} else if len(appList) > 1 {
-		logger(m).Info("found multiple applications with the criteria supplied, using the first one, sorted by creation date")
-	}
-	app := appList[0]
 	d.SetId(app.Id)
 	_ = d.Set("label", app.Label)
 	_ = d.Set("name", app.Name)
 	_ = d.Set("status", app.Status)
 	_ = d.Set("key_id", app.Credentials.Signing.Kid)
-	if app.Settings != nil && app.Settings.SignOn != nil {
-		err = syncSamlSettings(d, app.Settings)
+	if app.Settings != nil {
+		if app.Settings.SignOn != nil {
+			err = setSamlSettings(d, app.Settings.SignOn)
+			if err != nil {
+				return diag.Errorf("failed to read SAML app: error setting SAML sign-on settings: %v", err)
+			}
+		}
+		err = setAppSettings(d, app.Settings.App)
 		if err != nil {
-			return diag.Errorf("failed to read SAML app: error setting SAML app settings: %v", err)
+			return diag.Errorf("failed to read SAML app: failed to set SAML app settings: %v", err)
 		}
 	}
 	_ = d.Set("features", convertStringSetToInterface(app.Features))
 	_ = d.Set("user_name_template", app.Credentials.UserNameTemplate.Template)
 	_ = d.Set("user_name_template_type", app.Credentials.UserNameTemplate.Type)
 	_ = d.Set("user_name_template_suffix", app.Credentials.UserNameTemplate.Suffix)
+	p, _ := json.Marshal(app.Links)
+	_ = d.Set("links", string(p))
 	return nil
 }

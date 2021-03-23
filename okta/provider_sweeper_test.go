@@ -8,7 +8,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/okta/okta-sdk-golang/v2/okta"
-	"github.com/oktadeveloper/terraform-provider-okta/sdk"
+	"github.com/okta/terraform-provider-okta/sdk"
 )
 
 type testClient struct {
@@ -51,7 +51,6 @@ func setupSweeper(resourceType string, del func(*testClient) error) {
 		Name: resourceType,
 		F: func(_ string) error {
 			client, apiSupplement, err := sharedClient()
-
 			if err != nil {
 				return err
 			}
@@ -80,7 +79,6 @@ func sharedClient() (*okta.Client, *sdk.ApiSupplement, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-
 	orgURL := fmt.Sprintf("https://%v.%v", c.orgName, c.domain)
 	_, client, err := okta.NewClient(
 		context.Background(),

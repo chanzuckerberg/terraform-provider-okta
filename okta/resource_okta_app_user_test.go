@@ -39,7 +39,7 @@ func TestAccOktaAppUser_crud(t *testing.T) {
 					ensureAppUserExists(resourceName),
 					resource.TestCheckResourceAttrSet(resourceName, "app_id"),
 					resource.TestCheckResourceAttrSet(resourceName, "user_id"),
-					resource.TestCheckResourceAttr(resourceName, "username", fmt.Sprintf("testAcc_%d", ri)),
+					resource.TestCheckResourceAttr(resourceName, "username", buildResourceName(ri)),
 				),
 			},
 			{
@@ -73,6 +73,41 @@ func TestAccOktaAppUser_crud(t *testing.T) {
 
 					return nil
 				},
+			},
+		},
+	})
+}
+
+func TestAccOktaAppUser_retain(t *testing.T) {
+	ri := acctest.RandInt()
+	resourceName := fmt.Sprintf("%s.test", appUser)
+	appName := fmt.Sprintf("%s.test", appOAuth)
+	userName := fmt.Sprintf("%s.test", oktaUser)
+	mgr := newFixtureManager(appUser)
+	retain := mgr.GetFixtures("retain.tf", ri, t)
+	retainDestroy := mgr.GetFixtures("retain_destroy.tf", ri, t)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProvidersFactories,
+		CheckDestroy:      checkAppUserDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: retain,
+				Check: resource.ComposeTestCheckFunc(
+					ensureAppUserExists(resourceName),
+					resource.TestCheckResourceAttrSet(resourceName, "app_id"),
+					resource.TestCheckResourceAttrSet(resourceName, "user_id"),
+					resource.TestCheckResourceAttr(resourceName, "username", fmt.Sprintf("testAcc_%d@example.com", ri)),
+					resource.TestCheckResourceAttr(resourceName, "retain_assignment", "true"),
+				),
+			},
+			{
+				Config: retainDestroy,
+				Check: resource.ComposeTestCheckFunc(
+					ensureResourceNotExists(resourceName),
+					ensureAppUserRetained(appName, userName),
+				),
 			},
 		},
 	})
@@ -123,4 +158,33 @@ func checkAppUserDestroy(s *terraform.State) error {
 	}
 
 	return nil
+}
+
+func ensureAppUserRetained(appName, userName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		notFound := "resource not found: %s"
+		// app user has been removed from state, so use app and user to query okta
+		appRes, ok := s.RootModule().Resources[appName]
+		if !ok {
+			return fmt.Errorf(notFound, appName)
+		}
+
+		userRes, ok := s.RootModule().Resources[userName]
+		if !ok {
+			return fmt.Errorf(notFound, userName)
+		}
+
+		appID := appRes.Primary.ID
+		userID := userRes.Primary.ID
+		client := getOktaClientFromMetadata(testAccProvider.Meta())
+
+		g, _, err := client.Application.GetApplicationUser(context.Background(), appID, userID, nil)
+		if err != nil {
+			return err
+		} else if g == nil {
+			return fmt.Errorf("Application User not found for app ID, user ID: %s, %s", appID, userID)
+		}
+
+		return nil
+	}
 }

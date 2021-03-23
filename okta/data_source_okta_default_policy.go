@@ -6,11 +6,10 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/oktadeveloper/terraform-provider-okta/sdk"
+	"github.com/okta/terraform-provider-okta/sdk"
 )
 
 // data source to retrieve information on a Default Policy
-
 func dataSourceDefaultPolicies() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceDefaultPolicyRead,
@@ -21,10 +20,9 @@ func dataSourceDefaultPolicies() *schema.Resource {
 					sdk.SignOnPolicyType,
 					sdk.PasswordPolicyType,
 					sdk.MfaPolicyType,
-					sdk.OauthAuthorizationPolicyType,
 					sdk.IdpDiscoveryType,
 				}),
-				Description: fmt.Sprintf("Policy type: %s, %s, %s, %s, or %s", sdk.SignOnPolicyType, sdk.PasswordPolicyType, sdk.MfaPolicyType, sdk.OauthAuthorizationPolicyType, sdk.IdpDiscoveryType),
+				Description: fmt.Sprintf("Policy type: %s, %s, %s, or %s", sdk.SignOnPolicyType, sdk.PasswordPolicyType, sdk.MfaPolicyType, sdk.IdpDiscoveryType),
 				Required:    true,
 			},
 		},
@@ -33,8 +31,16 @@ func dataSourceDefaultPolicies() *schema.Resource {
 
 func dataSourceDefaultPolicyRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	policyType := d.Get("type").(string)
+	var name string
 	if policyType == sdk.IdpDiscoveryType {
-		return setPolicyByName(ctx, d, m, "Idp Discovery Policy")
+		name = "Idp Discovery Policy"
+	} else {
+		name = "Default Policy"
 	}
-	return setPolicyByName(ctx, d, m, "Default Policy")
+	policy, err := findPolicy(ctx, m, name, policyType)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	d.SetId(policy.Id)
+	return nil
 }

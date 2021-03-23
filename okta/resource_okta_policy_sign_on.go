@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/okta/okta-sdk-golang/v2/okta"
-	"github.com/oktadeveloper/terraform-provider-okta/sdk"
+	"github.com/okta/terraform-provider-okta/sdk"
 )
 
 func resourcePolicySignOn() *schema.Resource {
@@ -63,7 +63,7 @@ func resourcePolicySignOnDelete(ctx context.Context, d *schema.ResourceData, m i
 	return nil
 }
 
-// create or update a sign on policy
+// create or update a sign-on policy
 func buildSignOnPolicy(d *schema.ResourceData) sdk.Policy {
 	template := sdk.SignOnPolicy()
 	template.Name = d.Get("name").(string)

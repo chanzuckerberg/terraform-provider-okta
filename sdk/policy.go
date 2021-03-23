@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/okta/okta-sdk-golang/v2/okta"
-	"github.com/okta/okta-sdk-golang/v2/okta/query"
 )
 
 const (
@@ -136,9 +135,11 @@ type PolicyFactorsSettings struct {
 	OktaPush     *PolicyFactor `json:"okta_push,omitempty"`
 	OktaQuestion *PolicyFactor `json:"okta_question,omitempty"`
 	OktaSms      *PolicyFactor `json:"okta_sms,omitempty"`
+	OktaEmail    *PolicyFactor `json:"okta_email,omitempty"`
 	RsaToken     *PolicyFactor `json:"rsa_token,omitempty"`
 	SymantecVip  *PolicyFactor `json:"symantec_vip,omitempty"`
 	YubikeyToken *PolicyFactor `json:"yubikey_token,omitempty"`
+	Hotp         *PolicyFactor `json:"hotp,omitempty"`
 }
 
 type PolicyFactor struct {
@@ -173,24 +174,6 @@ func (m *ApiSupplement) GetPolicy(ctx context.Context, policyID string) (*Policy
 		return nil, resp, err
 	}
 	return &policy, resp, nil
-}
-
-// Gets all policies with the specified type.
-func (m *ApiSupplement) ListPolicies(ctx context.Context, qp *query.Params) ([]Policy, *okta.Response, error) {
-	url := "/api/v1/policies"
-	if qp != nil {
-		url = url + qp.String()
-	}
-	req, err := m.RequestExecutor.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	var policies []Policy
-	resp, err := m.RequestExecutor.Do(ctx, req, &policies)
-	if err != nil {
-		return nil, resp, err
-	}
-	return policies, resp, nil
 }
 
 // Updates a policy.

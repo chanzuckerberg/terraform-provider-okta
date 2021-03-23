@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/okta/okta-sdk-golang/v2/okta"
-	"github.com/oktadeveloper/terraform-provider-okta/sdk"
+	"github.com/okta/terraform-provider-okta/sdk"
 )
 
 func resourcePolicyMfa() *schema.Resource {
@@ -25,7 +25,7 @@ func resourcePolicyMfa() *schema.Resource {
 }
 
 func resourcePolicyMfaCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	policy := buildMfaPolicy(d)
+	policy := buildMFAPolicy(d)
 	err := createPolicy(ctx, d, m, policy)
 	if err != nil {
 		return diag.Errorf("failed to create MFA policy: %v", err)
@@ -41,19 +41,21 @@ func resourcePolicyMfaRead(ctx context.Context, d *schema.ResourceData, m interf
 	if policy == nil {
 		return nil
 	}
-	syncFactor(d, "duo", policy.Settings.Factors.Duo)
-	syncFactor(d, "fido_u2f", policy.Settings.Factors.FidoU2f)
-	syncFactor(d, "fido_webauthn", policy.Settings.Factors.FidoWebauthn)
-	syncFactor(d, "google_otp", policy.Settings.Factors.GoogleOtp)
-	syncFactor(d, "okta_call", policy.Settings.Factors.OktaCall)
-	syncFactor(d, "okta_otp", policy.Settings.Factors.OktaOtp)           //
-	syncFactor(d, "okta_password", policy.Settings.Factors.OktaPassword) //
-	syncFactor(d, "okta_push", policy.Settings.Factors.OktaPush)         //
-	syncFactor(d, "okta_question", policy.Settings.Factors.OktaQuestion)
-	syncFactor(d, "okta_sms", policy.Settings.Factors.OktaSms)
-	syncFactor(d, "rsa_token", policy.Settings.Factors.RsaToken)
-	syncFactor(d, "symantec_vip", policy.Settings.Factors.SymantecVip)
-	syncFactor(d, "yubikey_token", policy.Settings.Factors.YubikeyToken)
+	syncFactor(d, sdk.DuoFactor, policy.Settings.Factors.Duo)
+	syncFactor(d, sdk.FidoU2fFactor, policy.Settings.Factors.FidoU2f)
+	syncFactor(d, sdk.FidoWebauthnFactor, policy.Settings.Factors.FidoWebauthn)
+	syncFactor(d, sdk.GoogleOtpFactor, policy.Settings.Factors.GoogleOtp)
+	syncFactor(d, sdk.OktaCallFactor, policy.Settings.Factors.OktaCall)
+	syncFactor(d, sdk.OktaOtpFactor, policy.Settings.Factors.OktaOtp)
+	syncFactor(d, sdk.OktaPasswordFactor, policy.Settings.Factors.OktaPassword)
+	syncFactor(d, sdk.OktaPushFactor, policy.Settings.Factors.OktaPush)
+	syncFactor(d, sdk.OktaQuestionFactor, policy.Settings.Factors.OktaQuestion)
+	syncFactor(d, sdk.OktaSmsFactor, policy.Settings.Factors.OktaSms)
+	syncFactor(d, sdk.OktaEmailFactor, policy.Settings.Factors.OktaEmail)
+	syncFactor(d, sdk.RsaTokenFactor, policy.Settings.Factors.RsaToken)
+	syncFactor(d, sdk.SymantecVipFactor, policy.Settings.Factors.SymantecVip)
+	syncFactor(d, sdk.YubikeyTokenFactor, policy.Settings.Factors.YubikeyToken)
+	syncFactor(d, sdk.HotpFactor, policy.Settings.Factors.YubikeyToken)
 	err = syncPolicyFromUpstream(d, policy)
 	if err != nil {
 		return diag.Errorf("failed to sync policy: %v", err)
@@ -62,7 +64,7 @@ func resourcePolicyMfaRead(ctx context.Context, d *schema.ResourceData, m interf
 }
 
 func resourcePolicyMfaUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	policy := buildMfaPolicy(d)
+	policy := buildMFAPolicy(d)
 	err := updatePolicy(ctx, d, m, policy)
 	if err != nil {
 		return diag.Errorf("failed to update MFA policy: %v", err)
@@ -95,8 +97,8 @@ func buildFactorProvider(d *schema.ResourceData, key string) *sdk.PolicyFactor {
 	return f
 }
 
-// create or update a password policy
-func buildMfaPolicy(d *schema.ResourceData) sdk.Policy {
+// create or update a MFA policy
+func buildMFAPolicy(d *schema.ResourceData) sdk.Policy {
 	policy := sdk.MfaPolicy()
 	policy.Name = d.Get("name").(string)
 	policy.Status = d.Get("status").(string)
@@ -106,19 +108,21 @@ func buildMfaPolicy(d *schema.ResourceData) sdk.Policy {
 	}
 	policy.Settings = &sdk.PolicySettings{
 		Factors: &sdk.PolicyFactorsSettings{
-			Duo:          buildFactorProvider(d, "duo"),
-			FidoU2f:      buildFactorProvider(d, "fido_u2f"),
-			FidoWebauthn: buildFactorProvider(d, "fido_webauthn"),
-			GoogleOtp:    buildFactorProvider(d, "google_otp"),
-			OktaCall:     buildFactorProvider(d, "okta_call"),
-			OktaOtp:      buildFactorProvider(d, "okta_otp"),
-			OktaPassword: buildFactorProvider(d, "okta_password"),
-			OktaPush:     buildFactorProvider(d, "okta_push"),
-			OktaQuestion: buildFactorProvider(d, "okta_question"),
-			OktaSms:      buildFactorProvider(d, "okta_sms"),
-			RsaToken:     buildFactorProvider(d, "rsa_token"),
-			SymantecVip:  buildFactorProvider(d, "symantec_vip"),
-			YubikeyToken: buildFactorProvider(d, "yubikey_token"),
+			Duo:          buildFactorProvider(d, sdk.DuoFactor),
+			FidoU2f:      buildFactorProvider(d, sdk.FidoU2fFactor),
+			FidoWebauthn: buildFactorProvider(d, sdk.FidoWebauthnFactor),
+			GoogleOtp:    buildFactorProvider(d, sdk.GoogleOtpFactor),
+			OktaCall:     buildFactorProvider(d, sdk.OktaCallFactor),
+			OktaOtp:      buildFactorProvider(d, sdk.OktaOtpFactor),
+			OktaPassword: buildFactorProvider(d, sdk.OktaPasswordFactor),
+			OktaPush:     buildFactorProvider(d, sdk.OktaPushFactor),
+			OktaQuestion: buildFactorProvider(d, sdk.OktaQuestionFactor),
+			OktaSms:      buildFactorProvider(d, sdk.OktaSmsFactor),
+			OktaEmail:    buildFactorProvider(d, sdk.OktaEmailFactor),
+			RsaToken:     buildFactorProvider(d, sdk.RsaTokenFactor),
+			SymantecVip:  buildFactorProvider(d, sdk.SymantecVipFactor),
+			YubikeyToken: buildFactorProvider(d, sdk.YubikeyTokenFactor),
+			Hotp:         buildFactorProvider(d, sdk.HotpFactor),
 		},
 	}
 	policy.Conditions = &okta.PolicyRuleConditions{
@@ -138,37 +142,28 @@ func syncFactor(d *schema.ResourceData, k string, f *sdk.PolicyFactor) {
 }
 
 var factorProviders = []string{
-	"duo",
-	"fido_u2f",
-	"fido_webauthn",
-	"google_otp",
-	"okta_call",
-	"okta_otp",
-	"okta_password",
-	"okta_push",
-	"okta_question",
-	"okta_sms",
-	"rsa_token",
-	"symantec_vip",
-	"yubikey_token",
+	sdk.DuoFactor,
+	sdk.FidoU2fFactor,
+	sdk.FidoWebauthnFactor,
+	sdk.GoogleOtpFactor,
+	sdk.OktaCallFactor,
+	sdk.OktaOtpFactor,
+	sdk.OktaPasswordFactor,
+	sdk.OktaPushFactor,
+	sdk.OktaQuestionFactor,
+	sdk.OktaSmsFactor,
+	sdk.OktaEmailFactor,
+	sdk.RsaTokenFactor,
+	sdk.SymantecVipFactor,
+	sdk.YubikeyTokenFactor,
+	sdk.HotpFactor,
 }
 
 // List of factor provider above, they all follow the same schema
 func buildFactorProviders() map[string]*schema.Schema {
 	res := make(map[string]*schema.Schema)
 	for _, key := range factorProviders {
-		sMap := getPolicyFactorSchema(key)
-		for nestedKey, nestedVal := range sMap {
-			res[nestedKey] = nestedVal
-		}
-	}
-	return res
-}
-
-func getPolicyFactorSchema(key string) map[string]*schema.Schema {
-	// These are primitives to allow defaulting. Terraform still does not support aggregate defaults.
-	return map[string]*schema.Schema{
-		key: {
+		res[key] = &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeMap,
 			Elem: &schema.Schema{
@@ -194,6 +189,7 @@ func getPolicyFactorSchema(key string) map[string]*schema.Schema {
 				}
 				return errs
 			},
-		},
+		}
 	}
+	return res
 }

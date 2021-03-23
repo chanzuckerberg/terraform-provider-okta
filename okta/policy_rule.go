@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/okta/okta-sdk-golang/v2/okta"
-	"github.com/oktadeveloper/terraform-provider-okta/sdk"
+	"github.com/okta/terraform-provider-okta/sdk"
 )
 
 var userExcludedSchema = map[string]*schema.Schema{
@@ -37,7 +37,7 @@ var baseRuleSchema = map[string]*schema.Schema{
 	"priority": {
 		Type:        schema.TypeInt,
 		Optional:    true,
-		Description: "Policy Rule Priority, this attribute can be set to a valid priority. To avoid endless diff situation we error if an invalid priority is provided. API defaults it to the last/lowest if not there.",
+		Description: "Policy Rule Priority, this attribute can be set to a valid priority. To avoid endless diff situation we error if an invalid priority is provided. API defaults it to the last (lowest) if not there.",
 		// Suppress diff if config is empty.
 		DiffSuppressFunc: createValueDiffSuppression("0"),
 	},
@@ -206,8 +206,7 @@ func updateRule(ctx context.Context, d *schema.ResourceData, m interface{}, temp
 
 // activate or deactivate a policy rule according to the terraform schema status field
 func policyRuleActivate(ctx context.Context, d *schema.ResourceData, m interface{}) error {
-	client := getSupplementFromMetadata(m)
-
+	client := getOktaClientFromMetadata(m).Policy
 	if d.Get("status").(string) == statusActive {
 		_, err := client.ActivatePolicyRule(ctx, d.Get("policyid").(string), d.Id())
 		if err != nil {

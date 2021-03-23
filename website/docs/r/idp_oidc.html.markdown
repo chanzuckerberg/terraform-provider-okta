@@ -17,8 +17,6 @@ This resource allows you to create and configure an OIDC Identity Provider.
 ```hcl
 resource "okta_idp_oidc" "example" {
   name                  = "example"
-  acs_type              = "INSTANCE"
-  acs_binding           = "HTTP-POST"
   authorization_url     = "https://idp.example.com/authorize"
   authorization_binding = "HTTP-REDIRECT"
   token_url             = "https://idp.example.com/token"
@@ -51,11 +49,9 @@ The following arguments are supported:
 
 - `token_binding` - (Required) The method of making a token request. It can be set to `"HTTP-POST"` or `"HTTP-REDIRECT"`.
 
-- `jwks_url` - (Required) Endpoint where the signer of the keys publishes its keys in a JWK Set.
+- `jwks_url` - (Required) Endpoint where the keys signer publishes its keys in a JWK Set.
 
 - `jwks_binding` - (Required) The method of making a request for the OIDC JWKS. It can be set to `"HTTP-POST"` or `"HTTP-REDIRECT"`.
-
-- `acs_binding` - (Required) The method of making an ACS request. It can be set to `"HTTP-POST"` or `"HTTP-REDIRECT"`.
 
 - `client_id` - (Required) Unique identifier issued by AS for the Okta IdP instance.
 
@@ -68,8 +64,6 @@ The following arguments are supported:
 - `user_info_url` - (Optional) Protected resource endpoint that returns claims about the authenticated user.
 
 - `user_info_binding` - (Optional)
-
-- `acs_type` - (Optional) The type of ACS. Default is `"INSTANCE"`.
 
 - `protocol_type` - (Optional) The type of protocol to use. It can be `"OIDC"` or `"OAUTH2"`.
 
@@ -97,7 +91,7 @@ The following arguments are supported:
 
 - `username_template` - (Optional) Okta EL Expression to generate or transform a unique username for the IdP user.
 
-- `subject_match_type` - (Optional) Determines the Okta user profile attribute match conditions for account linking and authentication of the transformed IdP username. By default it is set to `"USERNAME"`. It can be set to `"USERNAME"`, `"EMAIL"`, `"USERNAME_OR_EMAIL"` or `"CUSTOM_ATTRIBUTE"`.
+- `subject_match_type` - (Optional) Determines the Okta user profile attribute match conditions for account linking and authentication of the transformed IdP username. By default, it is set to `"USERNAME"`. It can be set to `"USERNAME"`, `"EMAIL"`, `"USERNAME_OR_EMAIL"` or `"CUSTOM_ATTRIBUTE"`.
 
 - `subject_match_attribute` - (Optional) Okta user profile attribute for matching transformed IdP username. Only for matchType `"CUSTOM_ATTRIBUTE"`.
 

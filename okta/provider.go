@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -13,6 +15,7 @@ import (
 
 // Resource names, defined in place, used throughout the provider and tests
 const (
+	adminRoleTargets       = "okta_admin_role_targets"
 	appAutoLogin           = "okta_app_auto_login"
 	appBookmark            = "okta_app_bookmark"
 	appBasicAuth           = "okta_app_basic_auth"
@@ -20,6 +23,7 @@ const (
 	appGroupAssignments    = "okta_app_group_assignments"
 	appUser                = "okta_app_user"
 	appOAuth               = "okta_app_oauth"
+	appOAuthAPIScope       = "okta_app_oauth_api_scope"
 	appOAuthRedirectURI    = "okta_app_oauth_redirect_uri"
 	appSaml                = "okta_app_saml"
 	appSecurePasswordStore = "okta_app_secure_password_store"
@@ -28,25 +32,30 @@ const (
 	appUserSchema          = "okta_app_user_schema"
 	appUserBaseSchema      = "okta_app_user_base_schema"
 	authServer             = "okta_auth_server"
+	authServerDefault      = "okta_auth_server_default"
 	authServerClaim        = "okta_auth_server_claim"
 	authServerPolicy       = "okta_auth_server_policy"
 	authServerPolicyRule   = "okta_auth_server_policy_rule"
 	authServerScope        = "okta_auth_server_scope"
 	eventHook              = "okta_event_hook"
 	factor                 = "okta_factor"
+	groupRole              = "okta_group_role"
 	groupRoles             = "okta_group_roles"
 	groupRule              = "okta_group_rule"
-	idpResource            = "okta_idp_oidc"
+	idpOidc                = "okta_idp_oidc"
 	idpSaml                = "okta_idp_saml"
 	idpSamlKey             = "okta_idp_saml_key"
 	idpSocial              = "okta_idp_social"
 	inlineHook             = "okta_inline_hook"
 	networkZone            = "okta_network_zone"
 	oktaGroup              = "okta_group"
+	oktaGroupMembership    = "okta_group_membership"
 	oktaProfileMapping     = "okta_profile_mapping"
 	oktaUser               = "okta_user"
 	policyMfa              = "okta_policy_mfa"
+	policyMfaDefault       = "okta_policy_mfa_default"
 	policyPassword         = "okta_policy_password"
+	policyPasswordDefault  = "okta_policy_password_default"
 	policyRuleIdpDiscovery = "okta_policy_rule_idp_discovery"
 	policyRuleMfa          = "okta_policy_rule_mfa"
 	policyRulePassword     = "okta_policy_rule_password"
@@ -65,7 +74,6 @@ const (
 func Provider() *schema.Provider {
 	deprecatedPolicies := dataSourceDefaultPolicies()
 	deprecatedPolicies.DeprecationMessage = "This data source will be deprecated in favor of okta_default_policy or okta_policy data sources."
-
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"org_name": {
@@ -75,10 +83,33 @@ func Provider() *schema.Provider {
 				Description: "The organization to manage in Okta.",
 			},
 			"api_token": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				DefaultFunc: schema.EnvDefaultFunc("OKTA_API_TOKEN", nil),
-				Description: "API Token granting privileges to Okta API.",
+				Type:          schema.TypeString,
+				Optional:      true,
+				DefaultFunc:   schema.EnvDefaultFunc("OKTA_API_TOKEN", nil),
+				Description:   "API Token granting privileges to Okta API.",
+				ConflictsWith: []string{"client_id", "scopes", "private_key"},
+			},
+			"client_id": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				DefaultFunc:   schema.EnvDefaultFunc("OKTA_API_CLIENT_ID", nil),
+				Description:   "API Token granting privileges to Okta API.",
+				ConflictsWith: []string{"api_token"},
+			},
+			"scopes": {
+				Type:          schema.TypeSet,
+				Optional:      true,
+				Elem:          &schema.Schema{Type: schema.TypeString},
+				DefaultFunc:   envDefaultSetFunc("OKTA_API_SCOPES", nil),
+				Description:   "API Token granting privileges to Okta API.",
+				ConflictsWith: []string{"api_token"},
+			},
+			"private_key": {
+				Optional:      true,
+				Type:          schema.TypeString,
+				DefaultFunc:   schema.EnvDefaultFunc("OKTA_API_PRIVATE_KEY", nil),
+				Description:   "API Token granting privileges to Okta API.",
+				ConflictsWith: []string{"api_token"},
 			},
 			"base_url": {
 				Type:        schema.TypeString,
@@ -132,8 +163,8 @@ func Provider() *schema.Provider {
 				Description:      "Timeout for single request (in seconds) which is made to Okta, the default is `0` (means no limit is set). The maximum value can be `100`.",
 			},
 		},
-
 		ResourcesMap: map[string]*schema.Resource{
+			adminRoleTargets:       resourceAdminRoleTargets(),
 			appAutoLogin:           resourceAppAutoLogin(),
 			appBookmark:            resourceAppBookmark(),
 			appBasicAuth:           resourceAppBasicAuth(),
@@ -141,6 +172,7 @@ func Provider() *schema.Provider {
 			appGroupAssignments:    resourceAppGroupAssignments(),
 			appUser:                resourceAppUser(),
 			appOAuth:               resourceAppOAuth(),
+			appOAuthAPIScope:       resourceAppOAuthAPIScope(),
 			appOAuthRedirectURI:    resourceAppOAuthRedirectURI(),
 			appSaml:                resourceAppSaml(),
 			appSecurePasswordStore: resourceAppSecurePasswordStore(),
@@ -149,25 +181,30 @@ func Provider() *schema.Provider {
 			appUserSchema:          resourceAppUserSchema(),
 			appUserBaseSchema:      resourceAppUserBaseSchema(),
 			authServer:             resourceAuthServer(),
+			authServerDefault:      resourceAuthServerDefault(),
 			authServerClaim:        resourceAuthServerClaim(),
 			authServerPolicy:       resourceAuthServerPolicy(),
 			authServerPolicyRule:   resourceAuthServerPolicyRule(),
 			authServerScope:        resourceAuthServerScope(),
 			eventHook:              resourceEventHook(),
 			factor:                 resourceFactor(),
+			groupRole:              resourceGroupRole(),
 			groupRoles:             resourceGroupRoles(),
 			groupRule:              resourceGroupRule(),
-			idpResource:            resourceIdpOidc(),
+			idpOidc:                resourceIdpOidc(),
 			idpSaml:                resourceIdpSaml(),
 			idpSamlKey:             resourceIdpSigningKey(),
 			idpSocial:              resourceIdpSocial(),
 			inlineHook:             resourceInlineHook(),
 			networkZone:            resourceNetworkZone(),
 			oktaGroup:              resourceGroup(),
+			oktaGroupMembership:    resourceGroupMembership(),
 			oktaProfileMapping:     resourceOktaProfileMapping(),
 			oktaUser:               resourceUser(),
 			policyMfa:              resourcePolicyMfa(),
+			policyMfaDefault:       resourcePolicyMfaDefault(),
 			policyPassword:         resourcePolicyPassword(),
+			policyPasswordDefault:  resourcePolicyPasswordDefault(),
 			policySignOn:           resourcePolicySignOn(),
 			policyRuleIdpDiscovery: resourcePolicyRuleIdpDiscovery(),
 			policyRuleMfa:          resourcePolicyMfaRule(),
@@ -181,7 +218,7 @@ func Provider() *schema.Provider {
 			userType:               resourceUserType(),
 
 			// The day I realized I was naming stuff wrong :'-(
-			"okta_idp":                       deprecateIncorrectNaming(resourceIdpOidc(), idpResource),
+			"okta_idp":                       deprecateIncorrectNaming(resourceIdpOidc(), idpOidc),
 			"okta_saml_idp":                  deprecateIncorrectNaming(resourceIdpSaml(), idpSaml),
 			"okta_saml_idp_signing_key":      deprecateIncorrectNaming(resourceIdpSigningKey(), idpSamlKey),
 			"okta_social_idp":                deprecateIncorrectNaming(resourceIdpSocial(), idpSocial),
@@ -202,19 +239,24 @@ func Provider() *schema.Provider {
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"okta_app":                         dataSourceApp(),
-			"okta_app_saml":                    dataSourceAppSaml(),
+			appSaml:                            dataSourceAppSaml(),
+			appOAuth:                           dataSourceAppOauth(),
 			"okta_app_metadata_saml":           dataSourceAppMetadataSaml(),
 			"okta_default_policies":            deprecatedPolicies,
 			"okta_default_policy":              dataSourceDefaultPolicies(),
 			"okta_everyone_group":              dataSourceEveryoneGroup(),
-			"okta_group":                       dataSourceGroup(),
+			oktaGroup:                          dataSourceGroup(),
 			"okta_idp_metadata_saml":           dataSourceIdpMetadataSaml(),
-			"okta_idp_saml":                    dataSourceIdpSaml(),
+			idpSaml:                            dataSourceIdpSaml(),
+			idpOidc:                            dataSourceIdpOidc(),
+			idpSocial:                          dataSourceIdpSocial(),
 			"okta_policy":                      dataSourcePolicy(),
+			authServerPolicy:                   dataSourceAuthServerPolicy(),
 			"okta_user_profile_mapping_source": dataSourceUserProfileMappingSource(),
-			"okta_user":                        dataSourceUser(),
+			oktaUser:                           dataSourceUser(),
 			"okta_users":                       dataSourceUsers(),
 			authServer:                         dataSourceAuthServer(),
+			"okta_auth_server_scopes":          dataSourceAuthServerScopes(),
 			userType:                           dataSourceUserType(),
 		},
 		ConfigureContextFunc: providerConfigure,
@@ -228,12 +270,14 @@ func deprecateIncorrectNaming(d *schema.Resource, newResource string) *schema.Re
 
 func providerConfigure(_ context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 	log.Printf("[INFO] Initializing Okta client")
-
 	config := Config{
 		orgName:        d.Get("org_name").(string),
 		domain:         d.Get("base_url").(string),
 		apiToken:       d.Get("api_token").(string),
 		parallelism:    d.Get("parallelism").(int),
+		clientID:       d.Get("client_id").(string),
+		privateKey:     d.Get("private_key").(string),
+		scopes:         convertInterfaceToStringSet(d.Get("scopes")),
 		retryCount:     d.Get("max_retries").(int),
 		minWait:        d.Get("min_wait_seconds").(int),
 		maxWait:        d.Get("max_wait_seconds").(int),
@@ -245,4 +289,13 @@ func providerConfigure(_ context.Context, d *schema.ResourceData) (interface{}, 
 		return nil, diag.Errorf("[ERROR] Error initializing the Okta SDK clients: %v", err)
 	}
 	return &config, nil
+}
+
+func envDefaultSetFunc(k string, dv interface{}) schema.SchemaDefaultFunc {
+	return func() (interface{}, error) {
+		if v := os.Getenv(k); v != "" {
+			return convertStringSetToInterface(strings.Split(v, ",")), nil
+		}
+		return dv, nil
+	}
 }

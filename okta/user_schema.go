@@ -1,8 +1,10 @@
 package okta
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/oktadeveloper/terraform-provider-okta/sdk"
+	"github.com/okta/terraform-provider-okta/sdk"
 )
 
 var (
@@ -65,12 +67,6 @@ var (
 			Description:   "Custom Subschema enumerated value of the property. see: developer.okta.com/docs/api/resources/schemas#user-profile-schema-property-object",
 			ConflictsWith: []string{"array_type"},
 			Elem:          &schema.Schema{Type: schema.TypeString},
-		},
-		"scope": {
-			Type:             schema.TypeString,
-			Optional:         true,
-			Default:          "NONE",
-			ValidateDiagFunc: stringInSlice([]string{"SELF", "NONE", ""}),
 		},
 		"one_of": {
 			Type:          schema.TypeList,
@@ -140,14 +136,6 @@ var (
 			Description:      "SubSchema permissions: HIDE, READ_ONLY, or READ_WRITE.",
 			Default:          "READ_ONLY",
 		},
-		"master": {
-			Type:     schema.TypeString,
-			Optional: true,
-			// Accepting an empty value to allow for zero value (when provisioning is off)
-			ValidateDiagFunc: stringInSlice([]string{"PROFILE_MASTER", "OKTA", ""}),
-			Description:      "SubSchema profile manager, if not set it will inherit its setting.",
-			Default:          "PROFILE_MASTER",
-		},
 		"required": {
 			Type:        schema.TypeBool,
 			Optional:    true,
@@ -186,6 +174,8 @@ func syncUserSchema(d *schema.ResourceData, subschema *sdk.UserSubSchema) error 
 	_ = d.Set("unique", subschema.Unique)
 	if subschema.Items != nil {
 		_ = d.Set("array_type", subschema.Items.Type)
+		_ = d.Set("array_one_of", flattenOneOf(subschema.Items.OneOf))
+		_ = d.Set("array_enum", convertStringArrToInterface(subschema.Items.Enum))
 	}
 	return setNonPrimitives(d, map[string]interface{}{
 		"enum":   subschema.Enum,
@@ -199,6 +189,16 @@ func syncBaseUserSchema(d *schema.ResourceData, subschema *sdk.UserSubSchema) {
 	_ = d.Set("required", subschema.Required)
 	if subschema.Master != nil {
 		_ = d.Set("master", subschema.Master.Type)
+		if subschema.Master.Type == "OVERRIDE" {
+			arr := make([]map[string]interface{}, len(subschema.Master.Priority))
+			for i, st := range subschema.Master.Priority {
+				arr[i] = map[string]interface{}{
+					"type":  st.Type,
+					"value": st.Value,
+				}
+			}
+			_ = setNonPrimitives(d, map[string]interface{}{"master_override_priority": arr})
+		}
 	}
 	if len(subschema.Permissions) > 0 {
 		_ = d.Set("permissions", subschema.Permissions[0].Action)
@@ -211,14 +211,14 @@ func syncBaseUserSchema(d *schema.ResourceData, subschema *sdk.UserSubSchema) {
 }
 
 func getBaseProperty(s *sdk.UserSchema, id string) *sdk.UserSubSchema {
-	if s == nil {
+	if s == nil || s.Definitions == nil || s.Definitions.Base == nil {
 		return nil
 	}
 	return s.Definitions.Base.Properties[id]
 }
 
 func getCustomProperty(s *sdk.UserSchema, id string) *sdk.UserSubSchema {
-	if s == nil {
+	if s == nil || s.Definitions == nil || s.Definitions.Custom == nil {
 		return nil
 	}
 	return s.Definitions.Custom.Properties[id]
@@ -241,11 +241,25 @@ func getNullableOneOf(d *schema.ResourceData, key string) (oneOf []*sdk.UserSche
 }
 
 func getNullableMaster(d *schema.ResourceData) *sdk.UserSchemaMaster {
-	if v, ok := d.GetOk("master"); ok {
-		return &sdk.UserSchemaMaster{Type: v.(string)}
+	v, ok := d.GetOk("master")
+	if !ok {
+		return nil
 	}
-
-	return nil
+	usm := &sdk.UserSchemaMaster{Type: v.(string)}
+	if v.(string) == "OVERRIDE" {
+		mop, ok := d.Get("master_override_priority").([]interface{})
+		if ok && len(mop) > 0 {
+			props := make([]sdk.UserSchemaMasterPriority, len(mop))
+			for i := range mop {
+				props[i] = sdk.UserSchemaMasterPriority{
+					Type:  d.Get(fmt.Sprintf("master_override_priority.%d.type", i)).(string),
+					Value: d.Get(fmt.Sprintf("master_override_priority.%d.value", i)).(string),
+				}
+			}
+			usm.Priority = props
+		}
+	}
+	return usm
 }
 
 func getNullableItem(d *schema.ResourceData) *sdk.UserSchemaItem {

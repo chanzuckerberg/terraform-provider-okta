@@ -6,7 +6,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/okta/okta-sdk-golang/v2/okta"
-	"github.com/oktadeveloper/terraform-provider-okta/sdk"
+	"github.com/okta/okta-sdk-golang/v2/okta/query"
+	"github.com/okta/terraform-provider-okta/sdk"
 )
 
 // Basis of policy schema
@@ -15,7 +16,6 @@ var (
 		"name": {
 			Type:        schema.TypeString,
 			Required:    true,
-			ForceNew:    true,
 			Description: "Policy Name",
 		},
 		"description": {
@@ -26,7 +26,7 @@ var (
 		"priority": {
 			Type:        schema.TypeInt,
 			Optional:    true,
-			Description: "Policy Priority, this attribute can be set to a valid priority. To avoid endless diff situation we error if an invalid priority is provided. API defaults it to the last/lowest if not there.",
+			Description: "Policy Priority, this attribute can be set to a valid priority. To avoid endless diff situation we error if an invalid priority is provided. API defaults it to the last (lowest) if not there.",
 			// Suppress diff if config is empty.
 			DiffSuppressFunc: createValueDiffSuppression("0"),
 		},
@@ -47,6 +47,34 @@ var (
 		},
 	}
 
+	defaultPolicySchema = map[string]*schema.Schema{
+		"name": {
+			Type:        schema.TypeString,
+			Computed:    true,
+			Description: "Default policy name",
+		},
+		"description": {
+			Type:        schema.TypeString,
+			Computed:    true,
+			Description: "Default policy description",
+		},
+		"priority": {
+			Type:        schema.TypeInt,
+			Computed:    true,
+			Description: "Default policy priority",
+		},
+		"status": {
+			Type:        schema.TypeString,
+			Computed:    true,
+			Description: "Default policy status",
+		},
+		"default_included_group_id": {
+			Type:        schema.TypeString,
+			Computed:    true,
+			Description: "Default group ID (always included)",
+		},
+	}
+
 	statusSchema = &schema.Schema{
 		Type:             schema.TypeString,
 		Optional:         true,
@@ -54,6 +82,52 @@ var (
 		ValidateDiagFunc: stringInSlice([]string{statusActive, statusInactive}),
 	}
 )
+
+func findPolicy(ctx context.Context, m interface{}, name, policyType string) (*okta.Policy, error) {
+	policies, resp, err := getOktaClientFromMetadata(m).Policy.ListPolicies(ctx, &query.Params{Type: policyType})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list policies: %v", err)
+	}
+	for {
+		for _, policy := range policies {
+			if policy.Name == name {
+				return policy, nil
+			}
+		}
+		if resp.HasNextPage() {
+			resp, err = resp.Next(ctx, &policies)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list policies: %v", err)
+			}
+			continue
+		} else {
+			break
+		}
+	}
+	return nil, fmt.Errorf("no policies retrieved for policy type '%s' and name '%s'", policyType, name)
+}
+
+func setDefaultPolicy(ctx context.Context, d *schema.ResourceData, m interface{}, policyType string) (*okta.Policy, error) {
+	policy, err := findPolicy(ctx, m, "Default Policy", policyType)
+	if err != nil {
+		return nil, err
+	}
+	groups, _, err := getOktaClientFromMetadata(m).Group.ListGroups(ctx, &query.Params{Q: "Everyone"})
+	if err != nil {
+		return nil, fmt.Errorf("failed find default group for default password policy: %v", err)
+	}
+	for i := range groups {
+		if groups[i].Profile.Name == "Everyone" {
+			_ = d.Set("default_included_group_id", groups[i].Id)
+		}
+	}
+	_ = d.Set("name", policy.Name)
+	_ = d.Set("description", policy.Description)
+	_ = d.Set("status", policy.Status)
+	_ = d.Set("priority", policy.Priority)
+	d.SetId(policy.Id)
+	return policy, nil
+}
 
 func getPeopleConditions(d *schema.ResourceData) *okta.GroupRulePeopleCondition {
 	return &okta.GroupRulePeopleCondition{
@@ -66,6 +140,10 @@ func getPeopleConditions(d *schema.ResourceData) *okta.GroupRulePeopleCondition 
 			Exclude: convertInterfaceToStringSet(d.Get("user_blacklist")),
 		},
 	}
+}
+
+func buildDefaultPolicySchema(target map[string]*schema.Schema) map[string]*schema.Schema {
+	return buildSchema(defaultPolicySchema, target)
 }
 
 func buildPolicySchema(target map[string]*schema.Schema) map[string]*schema.Schema {
@@ -135,7 +213,7 @@ func policyActivate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	if d.Get("status").(string) == statusInactive {
 		_, err := client.Policy.DeactivatePolicy(ctx, d.Id())
 		if err != nil {
-			return fmt.Errorf("dctivation has failed: %v", err)
+			return fmt.Errorf("deactivation has failed: %v", err)
 		}
 	}
 	return nil

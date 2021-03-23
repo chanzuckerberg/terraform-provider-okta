@@ -9,7 +9,7 @@ to participate without fear of doing the wrong thing.
 Below are our expectations for contributors. Following these guidelines gives us
 the best opportunity to work with you, by making sure we have the things we need
 in order to make it happen. Doing your best to follow it will speed up our
-ability to merge PRs and respond to issues.
+ability to merge PRs and respond to the issues.
 
 <!-- TOC depthFrom:2 -->
 
@@ -45,15 +45,15 @@ We welcome issues of all kinds including feature requests, bug reports, and
 general questions. Below you'll find checklists with guidelines for well-formed
 issues of each type.
 
-#### [Bug Reports](https://github.com/oktadeveloper/terraform-provider-okta/issues/new?template=Bug_Report.md)
+#### [Bug Reports](https://github.com/okta/terraform-provider-okta/issues/new?template=Bug_Report.md)
 
-- [ ] **Test against latest release**: Make sure you test against the latest
+- [ ] **Test against the latest release**: Make sure you test against the latest
       released version. It is possible we already fixed the bug you're experiencing.
 
 - [ ] **Search for possible duplicate reports**: It's helpful to keep bug
       reports consolidated to one thread, so do a quick search on existing bug
       reports to check if anybody else has reported the same thing. You can [scope
-      searches by the label "bug"](https://github.com/oktadeveloper/terraform-provider-okta/issues?q=is%3Aopen+is%3Aissue+label%3Abug) to help narrow things down.
+      searches by the label "bug"](https://github.com/okta/terraform-provider-okta/issues?q=is%3Aopen+is%3Aissue+label%3Abug) to help narrow things down.
 
 - [ ] **Include steps to reproduce**: Provide steps to reproduce the issue,
       along with your `.tf` files, with secrets removed, so we can try to
@@ -63,19 +63,19 @@ issues of each type.
       create a [gist](https://gist.github.com) of the _entire_ generated crash log
       for us to look at. Double check no sensitive items were in the log.
 
-#### [Feature Requests](https://github.com/oktadeveloper/terraform-provider-okta/issues/new?labels=enhancement&template=Feature_Request.md)
+#### [Feature Requests](https://github.com/okta/terraform-provider-okta/issues/new?labels=enhancement&template=Feature_Request.md)
 
 - [ ] **Search for possible duplicate requests**: It's helpful to keep requests
       consolidated to one thread, so do a quick search on existing requests to
       check if anybody else has reported the same thing. You can [scope searches by
-      the label "enhancement"](https://github.com/oktadeveloper/terraform-provider-okta/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement) to help narrow things down.
+      the label "enhancement"](https://github.com/okta/terraform-provider-okta/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement) to help narrow things down.
 
 - [ ] **Include a use case description**: In addition to describing the
       behavior of the feature you'd like to see added, it's helpful to also lay
       out the reason why the feature would be important and how it would benefit
       Terraform users.
 
-#### [Questions](https://github.com/oktadeveloper/terraform-provider-okta/issues/new?labels=question&template=Question.md)
+#### [Questions](https://github.com/okta/terraform-provider-okta/issues/new?labels=question&template=Question.md)
 
 - [ ] **Search for answers in Terraform documentation**: We're happy to answer
       questions in GitHub Issues, but it helps reduce issue churn and maintainer
@@ -119,9 +119,9 @@ expect:
 
 ### Pull Request Lifecycle
 
-1. [Fork the GitHub repository](https://help.github.com/en/articles/fork-a-repo),
-   modify the code, and [create a pull request](https://help.github.com/en/articles/creating-a-pull-request-from-a-fork).
-   You are welcome to submit your pull request for commentary or review before
+1. [Fork the GitHub repository](https://help.github.com/en/articles/fork-a-repo), modify the code, 
+   and [create a pull request](https://help.github.com/en/articles/creating-a-pull-request-from-a-fork).
+   You are welcome to submit your pull request for the commentaries or review before
    it is fully completed by creating a [draft pull request](https://help.github.com/en/articles/about-pull-requests#draft-pull-requests)
    or adding `[WIP]` to the beginning of the pull request title.
    Please include specific questions or items you'd like feedback on.
@@ -148,7 +148,7 @@ expect:
 
 ### Checklists for Contribution
 
-There are several different kinds of contribution, each of which has its own
+There are several kinds of contribution, each of which has its own
 standards for a speedy review. The following sections describe guidelines for
 each type of contribution.
 
@@ -243,7 +243,7 @@ guidelines.
     of the resource would end in `_thing`.
 
 - [ ] **Arguments_and_Attributes**: The HCL for arguments and attributes should
-      mimic the types and structs presented by the Okta API. API arguments should be
+      mimic the types and structs presented by the Okta API. API's arguments should be
       converted from `CamelCase` to `camel_case`.
 - [ ] **Documentation**: Each resource gets a page in the Terraform
       documentation. The [Terraform website][website] source is in this
@@ -289,7 +289,7 @@ The following resource checks need to be addressed before your contribution can 
 - [ ] **Implements Read After Create and Update**: Except where API eventual consistency prohibits immediate reading of resources or updated attributes, resource `Create` and `Update` functions should return the resource `Read` function.
 - [ ] **Implements Immediate Resource ID Set During Create**: Immediately after calling the API creation function, the resource ID should be set with [`d.SetId()`](https://godoc.org/github.com/hashicorp/terraform/helper/schema#ResourceData.SetId) before other API operations or returning the `Read` function.
 - [ ] **Implements Attribute Refreshes During Read**: All attributes available in the API should have [`d.Set()`](https://godoc.org/github.com/hashicorp/terraform/helper/schema#ResourceData.Set) called their values in the Terraform state during the `Read` function.
-- [ ] **Implements Error Checks with Non-Primative Attribute Refreshes**: When using [`d.Set()`](https://godoc.org/github.com/hashicorp/terraform/helper/schema#ResourceData.Set) with non-primative types (`schema.TypeList`, `schema.TypeSet`, or `schema.TypeMap`), perform error checking to [prevent issues where the code is not properly able to refresh the Terraform state](https://www.terraform.io/docs/extend/best-practices/detecting-drift.html#error-checking-aggregate-types).
+- [ ] **Implements Error Checks with Non-Primitive Attribute Refreshes**: When using [`d.Set()`](https://godoc.org/github.com/hashicorp/terraform/helper/schema#ResourceData.Set) with non-primitive types (`schema.TypeList`, `schema.TypeSet`, or `schema.TypeMap`), perform error checking to [prevent issues where the code is not properly able to refresh the Terraform state](https://www.terraform.io/docs/extend/best-practices/detecting-drift.html#error-checking-aggregate-types).
 - [ ] **Implements Import Acceptance Testing and Documentation**: Support for resource import (`Importer` in resource schema) must include `ImportState` acceptance testing (see also the [Acceptance Testing Guidelines](#acceptance-testing-guidelines) below) and `## Import` section in resource documentation.
 - [ ] **Implements Customizable Timeouts Documentation**: Support for customizable timeouts (`Timeouts` in resource schema) must include `## Timeouts` section in resource documentation.
 - [ ] **Implements State Migration When Adding New Virtual Attribute**: For new "virtual" attributes (those only in Terraform and not in the API), the schema should implement [State Migration](https://www.terraform.io/docs/extend/resources.html#state-migrations) to prevent differences for existing configurations that upgrade.
@@ -319,7 +319,7 @@ The below are required items that will be noted during submission review and pre
 - [ ] **Passes in us-west-2 Region**: Tests default to running in `us-west-2` and at a minimum should pass in that region or include necessary `PreCheck` functions to skip the test when ran outside an expected environment.
 - [ ] **Uses resource.ParallelTest**: Tests should utilize [`resource.ParallelTest()`](https://godoc.org/github.com/hashicorp/terraform/helper/resource#ParallelTest) instead of [`resource.Test()`](https://godoc.org/github.com/hashicorp/terraform/helper/resource#Test) except where serialized testing is absolutely required.
 - [ ] **Uses fmt.Sprintf()**: Test configurations preferably should to be separated into their own functions (typically named `testAccAws{SERVICE}{RESOURCE}Config{PURPOSE}`) that call [`fmt.Sprintf()`](https://golang.org/pkg/fmt/#Sprintf) for variable injection or a string `const` for completely static configurations. Test configurations should avoid `var` or other variable injection functionality such as [`text/template`](https://golang.org/pkg/text/template/).
-- [ ] **Uses Randomized Infrastructure Naming**: Test configurations that utilize resources where a unique name is required should generate a random name. Typically this is created via `rName := acctest.RandomWithPrefix("tf-acc-test")` in the acceptance test function before generating the configuration.
+- [ ] **Uses Randomized Infrastructure Naming**: Test configurations that utilize resources where a unique name is required should generate a random name. Typically, this is created via `rName := acctest.RandomWithPrefix("tf-acc-test")` in the acceptance test function before generating the configuration.
 
 For resources that support import, the additional item below is required that will be noted during submission review and prevent immediate merging:
 
@@ -328,7 +328,7 @@ For resources that support import, the additional item below is required that wi
 The below are style-based items that _may_ be noted during review and are recommended for simplicity, consistency, and quality assurance:
 
 - [ ] **Uses Builtin Check Functions**: Tests should utilize already available check functions, e.g. `resource.TestCheckResourceAttr()`, to verify values in the Terraform state over creating custom `TestCheckFunc`. More information about these functions can be found in the [Extending Terraform Builtin Check Functions documentation](https://www.terraform.io/docs/extend/testing/acceptance-tests/teststep.html#builtin-check-functions).
-- [ ] **Uses TestCheckResoureAttrPair() for Data Sources**: Tests should utilize [`resource.TestCheckResourceAttrPair()`](https://godoc.org/github.com/hashicorp/terraform/helper/resource#TestCheckResourceAttrPair) to verify values in the Terraform state for data sources attributes to compare them with their expected resource attributes.
+- [ ] **Uses TestCheckResourceAttrPair() for Data Sources**: Tests should utilize [`resource.TestCheckResourceAttrPair()`](https://godoc.org/github.com/hashicorp/terraform/helper/resource#TestCheckResourceAttrPair) to verify values in the Terraform state for data sources attributes to compare them with their expected resource attributes.
 - [ ] **Excludes Timeouts Configurations**: Test configurations should not include `timeouts {...}` configuration blocks except for explicit testing of customizable timeouts (typically very short timeouts with `ExpectError`).
 - [ ] **Implements Default and Zero Value Validation**: The basic test for a resource (typically named `TestAccAws{SERVICE}{RESOURCE}_basic`) should utilize available check functions, e.g. `resource.TestCheckResourceAttr()`, to verify default and zero values in the Terraform state for all attributes. Empty/missing configuration blocks can be verified with `resource.TestCheckResourceAttr(resourceName, "{ATTRIBUTE}.#", "0")` and empty maps with `resource.TestCheckResourceAttr(resourceName, "{ATTRIBUTE}.%", "0")`
 
@@ -356,7 +356,7 @@ contributions.
 
 Acceptance tests can be run using the `testacc` target in the Terraform
 `Makefile`. The individual tests to run can be controlled using a regular
-expression. Prior to running the tests provider configuration details such as
+expression. Prior to running the tests, provider configuration details such as
 access keys must be made available as environment variables.
 
 For example, to run an acceptance test against the Okta
@@ -368,8 +368,7 @@ export OKTA_ORG_NAME=...
 export OKTA_BASE_URL=...
 ```
 
-Tests can then be run by specifying the target provider and a regular
-expression defining the tests to run:
+Tests can then be run by specifying the target provider, and a regular expression defining the tests to run:
 
 ```sh
 $ make testacc TEST=./okta TESTARGS='-run=TestAccOktaOAuthApp_crud'
@@ -378,7 +377,7 @@ TF_ACC=1 go test ./okta -v -run=TestAccOktaOAuthApp_crud -timeout 120m
 === RUN   TestAccOktaOAuthApp_crud
 --- PASS: TestAccOktaOAuthApp_crud (26.56s)
 PASS
-ok  	github.com/oktadeveloper/terraform-provider-okta/okta	26.607s
+ok  	github.com/okta/terraform-provider-okta/okta	26.607s
 ```
 
 Entire resource test suites can be targeted by using the naming convention to
@@ -395,7 +394,7 @@ TF_ACC=1 go test ./okta -v -run=TestAccOktaUserSchema -timeout 120m
 === RUN   TestAccOktaUserSchema_arrayString
 --- PASS: TestAccOktaUserSchema_arrayString (12.70s)
 PASS
-ok  	github.com/oktadeveloper/terraform-provider-okta/okta	55.619s
+ok  	github.com/okta/terraform-provider-okta/okta	55.619s
 ```
 
 #### Writing an Acceptance Test
@@ -418,7 +417,7 @@ to a single resource. Most tests follow a similar structure.
 
 Each `TestStep` is defined in the call to `resource.ParallelTest()`. Most assertion
 functions are defined out of band with the tests. This keeps the tests
-readable, and allows reuse of assertion functions across different tests of the
+readable, and allows a reuse of assertion functions across different tests of the
 same type of resource. The definition of a complete test looks like this:
 
 ```go
@@ -496,6 +495,6 @@ When executing the test, the following steps are taken for each `TestStep`:
    CheckDestroy: createCheckResourceDestroy(oktaGroup, doesGroupExist)
    ```
 
-[website]: https://github.com/oktadeveloper/terraform-provider-okta/tree/master/website
+[website]: https://github.com/okta/terraform-provider-okta/tree/master/website
 [acctests]: https://github.com/hashicorp/terraform#acceptance-tests
 [ml]: https://groups.google.com/group/terraform-tool

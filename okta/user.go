@@ -225,10 +225,12 @@ func populateUserProfile(d *schema.ResourceData) *okta.UserProfile {
 	profile["login"] = d.Get("login").(string)
 	profile["email"] = d.Get("email").(string)
 
-	getSetParams := []string{"city", "costCenter", "countryCode", "department", "displayName", "division",
+	getSetParams := []string{
+		"city", "costCenter", "countryCode", "department", "displayName", "division",
 		"employeeNumber", "honorificPrefix", "honorificSuffix", "locale", "manager", "managerId", "middleName",
 		"mobilePhone", "nickName", "organization", "preferredLanguage", "primaryPhone", "profileUrl",
-		"secondEmail", "state", "streetAddress", "timezone", "title", "userType", "zipCode"}
+		"secondEmail", "state", "streetAddress", "timezone", "title", "userType", "zipCode",
+	}
 
 	for i := range getSetParams {
 		if res, ok := d.GetOk(camelCaseToUnderscore(getSetParams[i])); ok {
@@ -286,23 +288,35 @@ func setAdminRoles(ctx context.Context, d *schema.ResourceData, m interface{}) e
 	})
 }
 
-func setGroups(ctx context.Context, d *schema.ResourceData, c *okta.Client) error {
-	// set all groups currently attached to user in state
+// set all groups currently attached to the user
+func setAllGroups(ctx context.Context, d *schema.ResourceData, c *okta.Client) error {
 	groups, _, err := c.User.ListUserGroups(ctx, d.Id())
 	if err != nil {
 		return fmt.Errorf("failed to list user groups: %v", err)
 	}
+	groupIDs := make([]interface{}, len(groups))
+	for i := range groups {
+		groupIDs[i] = groups[i].Id
+	}
+	return setNonPrimitives(d, map[string]interface{}{
+		"group_memberships": schema.NewSet(schema.HashString, groupIDs),
+	})
+}
 
+// set groups attached to the user that can be changed
+func setGroups(ctx context.Context, d *schema.ResourceData, c *okta.Client) error {
+	groups, _, err := c.User.ListUserGroups(ctx, d.Id())
+	if err != nil {
+		return fmt.Errorf("failed to list user groups: %v", err)
+	}
 	groupIDs := make([]interface{}, 0)
-
-	// ignore saving the Everyone group into state so we don't end up with perpetual diffs
+	// ignore saving build-in or app groups into state so we don't end up with perpetual diffs,
+	// because it's impossible to remove user from build-in or app group via API
 	for _, group := range groups {
-		if group.Profile.Name != groupProfileEveryone {
+		if group.Type != "BUILT_IN" && group.Type != "APP_GROUP" {
 			groupIDs = append(groupIDs, group.Id)
 		}
 	}
-
-	// set the custom_profile_attributes values
 	return setNonPrimitives(d, map[string]interface{}{
 		"group_memberships": schema.NewSet(schema.HashString, groupIDs),
 	})
@@ -375,7 +389,7 @@ func updateGroupsOnUser(ctx context.Context, u string, g []string, c *okta.Clien
 		return fmt.Errorf("failed to list user groups: %v", err)
 	}
 	for _, group := range groups {
-		if group.Profile.Name != groupProfileEveryone {
+		if group.Type != "BUILT_IN" && group.Type != "APP_GROUP" {
 			_, err = c.Group.RemoveUserFromGroup(ctx, group.Id, u)
 			if err != nil {
 				return fmt.Errorf("failed to remove user from group: %v", err)
