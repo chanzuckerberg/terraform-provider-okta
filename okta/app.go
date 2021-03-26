@@ -12,30 +12,30 @@ import (
 	"github.com/okta/okta-sdk-golang/v2/okta/query"
 )
 
-// var appUserResource = &schema.Resource{
-// 	Schema: map[string]*schema.Schema{
-// 		"scope": {
-// 			Type:        schema.TypeString,
-// 			Computed:    true,
-// 			Description: "Scope of application user.",
-// 		},
-// 		"id": {
-// 			Type:        schema.TypeString,
-// 			Optional:    true,
-// 			Description: "User ID.",
-// 		},
-// 		"username": {
-// 			Type:        schema.TypeString,
-// 			Optional:    true,
-// 			Description: "Username for user.",
-// 		},
-// 		"password": {
-// 			Type:        schema.TypeString,
-// 			Optional:    true,
-// 			Description: "Password for user application.",
-// 		},
-// 	},
-// }
+var appUserResource = &schema.Resource{
+	Schema: map[string]*schema.Schema{
+		"scope": {
+			Type:        schema.TypeString,
+			Computed:    true,
+			Description: "Scope of application user.",
+		},
+		"id": {
+			Type:        schema.TypeString,
+			Optional:    true,
+			Description: "User ID.",
+		},
+		"username": {
+			Type:        schema.TypeString,
+			Optional:    true,
+			Description: "Username for user.",
+		},
+		"password": {
+			Type:        schema.TypeString,
+			Optional:    true,
+			Description: "Password for user application.",
+		},
+	},
+}
 
 var baseAppSchema = map[string]*schema.Schema{
 	"name": {
