@@ -315,6 +315,8 @@ func shouldUpdateUser(userList []*okta.AppUser, id, username string) bool {
 
 // Handles the assigning of groups and users to Applications. Does so asynchronously.
 func handleAppGroupsAndUsers(ctx context.Context, id string, d *schema.ResourceData, m interface{}) error {
+	// NOTE(el): skip handling of users and groups, inefficient and we're not using it
+	return nil
 	var wg sync.WaitGroup
 	resultChan := make(chan []*result, 1)
 	client := getOktaClientFromMetadata(m)
