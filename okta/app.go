@@ -12,30 +12,30 @@ import (
 	"github.com/okta/okta-sdk-golang/v2/okta/query"
 )
 
-var appUserResource = &schema.Resource{
-	Schema: map[string]*schema.Schema{
-		"scope": {
-			Type:        schema.TypeString,
-			Computed:    true,
-			Description: "Scope of application user.",
-		},
-		"id": {
-			Type:        schema.TypeString,
-			Optional:    true,
-			Description: "User ID.",
-		},
-		"username": {
-			Type:        schema.TypeString,
-			Optional:    true,
-			Description: "Username for user.",
-		},
-		"password": {
-			Type:        schema.TypeString,
-			Optional:    true,
-			Description: "Password for user application.",
-		},
-	},
-}
+// var appUserResource = &schema.Resource{
+// 	Schema: map[string]*schema.Schema{
+// 		"scope": {
+// 			Type:        schema.TypeString,
+// 			Computed:    true,
+// 			Description: "Scope of application user.",
+// 		},
+// 		"id": {
+// 			Type:        schema.TypeString,
+// 			Optional:    true,
+// 			Description: "User ID.",
+// 		},
+// 		"username": {
+// 			Type:        schema.TypeString,
+// 			Optional:    true,
+// 			Description: "Username for user.",
+// 		},
+// 		"password": {
+// 			Type:        schema.TypeString,
+// 			Optional:    true,
+// 			Description: "Password for user application.",
+// 		},
+// 	},
+// }
 
 var baseAppSchema = map[string]*schema.Schema{
 	"name": {
@@ -53,18 +53,18 @@ var baseAppSchema = map[string]*schema.Schema{
 		Computed:    true,
 		Description: "Sign on mode of application.",
 	},
-	"users": {
-		Type:        schema.TypeSet,
-		Optional:    true,
-		Elem:        appUserResource,
-		Description: "Users associated with the application",
-	},
-	"groups": {
-		Type:        schema.TypeSet,
-		Optional:    true,
-		Elem:        &schema.Schema{Type: schema.TypeString},
-		Description: "Groups associated with the application",
-	},
+	// "users": {
+	// 	Type:        schema.TypeSet,
+	// 	Optional:    true,
+	// 	Elem:        appUserResource,
+	// 	Description: "Users associated with the application",
+	// },
+	// "groups": {
+	// 	Type:        schema.TypeSet,
+	// 	Optional:    true,
+	// 	Elem:        &schema.Schema{Type: schema.TypeString},
+	// 	Description: "Groups associated with the application",
+	// },
 	"status": {
 		Type:             schema.TypeString,
 		Optional:         true,
@@ -424,7 +424,10 @@ func setAppStatus(ctx context.Context, d *schema.ResourceData, client *okta.Clie
 }
 
 func syncGroupsAndUsers(ctx context.Context, id string, d *schema.ResourceData, m interface{}) error {
+	// NOTE(el): We skip syncing groups and Users due to inefficiencies
+	return nil
 	ctx = context.WithValue(ctx, retryOnStatusCodes, []int{http.StatusNotFound})
+
 	client := getOktaClientFromMetadata(m)
 	// Temporary high limit to avoid issues short term. Need to support pagination here
 	userList, _, err := client.Application.ListApplicationUsers(ctx, id, &query.Params{Limit: defaultPaginationLimit})

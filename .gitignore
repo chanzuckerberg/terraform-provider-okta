@@ -31,3 +31,4 @@ dist
 
 bin/
 /vendor/
+.envrc
