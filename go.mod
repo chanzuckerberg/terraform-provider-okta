@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/bflad/tfproviderlint v0.24.0
-	github.com/cenkalti/backoff/v4 v4.1.0
+	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/chanzuckerberg/go-misc v0.0.0-20210319004500-e2b449f61a45
 	github.com/client9/misspell v0.3.4
 	github.com/crewjam/saml v0.4.5
